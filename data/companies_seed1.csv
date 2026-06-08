@@ -1,0 +1,6 @@
+name,tier,category,location,website,careers_url,linkedin_url,company_size,ai_focus,funding_stage,priority_base_score,google_alert_set,li_alert_set,career_page_watched,notes
+Pirimid Fintech,2,Fintech,Ahmedabad,https://pirimidtech.com,https://pirimidtech.com/careers/,https://www.linkedin.com/company/pirimid-fintech,51-200,Fraud detection and risk analytics,Growth,78,true,true,true,High priority ML watcher
+Atlan,1,Data infrastructure,GIFT City,https://atlan.com,https://atlan.com/careers,https://www.linkedin.com/company/atlanhq,201-500,Data catalog and AI ops,Series C,84,true,true,true,Platform ML roles
+HDFC Bank,1,Banking,Gandhinagar,https://www.hdfcbank.com,https://www.hdfcbank.com/careers,https://www.linkedin.com/company/hdfc-bank,10k+,"Risk, personalization, automation",,65,false,false,true,Watch for AI transformation hiring
+Razorpay,1,Payments,Bengaluru / Ahmedabad remote,https://razorpay.com,https://razorpay.com/jobs/,https://www.linkedin.com/company/razorpay,1000+,Payments intelligence,Late stage,76,true,true,false,Proactive target
+Gandhinagar Vision Systems,5,Computer Vision,Gandhinagar,https://example.com,https://example.com/jobs,https://www.linkedin.com/,51-200,Computer vision and OCR,Bootstrapped,68,false,false,true,No recent jobs posted

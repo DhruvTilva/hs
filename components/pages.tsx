@@ -9,21 +9,19 @@ import { Button, GhostLink, Metric, Panel, Pill, PrimaryButton, SectionTitle, Se
 import {
   companyHasDirectJobSignal,
   companyHasProactiveSignal,
-  companyHasRecentSignal,
   fetchCompanies,
   fetchOpportunities,
   fetchTracker,
   filterOpportunities,
 } from '@/lib/api';
-import { fallbackTrackedCompanies, sampleCompanies, sampleOpportunities } from '@/lib/sample-data';
 import { timeAgo } from '@/lib/time';
 import type { ApiListResponse, Company, Opportunity } from '@/lib/types';
 
+const EMPTY_MSG = 'No data yet. Scrapers will populate this automatically.';
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json() as Promise<T>;
 }
 
@@ -36,43 +34,34 @@ async function patchJson(url: string, body: Record<string, unknown>) {
 }
 
 export function TodayRadarPage() {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(sampleOpportunities);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
   async function load() {
     try {
       const response = await fetchJson<ApiListResponse<Opportunity>>('/api/opportunities?filter=today');
-      setOpportunities(response.data.length ? response.data : sampleOpportunities);
+      setOpportunities(response.data);
     } catch {
-      setOpportunities(sampleOpportunities);
+      setOpportunities([]);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const urgent = opportunities.filter((item) => (item.priority_score ?? 0) >= 70);
-  const watching = opportunities.filter((item) => {
-    const score = item.priority_score ?? 0;
-    return score >= 40 && score < 70;
-  });
+  const watching = opportunities.filter((item) => { const s = item.priority_score ?? 0; return s >= 40 && s < 70; });
   const normal = opportunities.filter((item) => (item.priority_score ?? 0) < 40);
 
   async function markApplied(opportunity: Opportunity) {
-    await patchJson('/api/opportunities', {
-      id: opportunity.id,
-      status: 'applied',
-      applied_at: new Date().toISOString(),
-    });
+    await patchJson('/api/opportunities', { id: opportunity.id, status: 'applied', applied_at: new Date().toISOString() });
     await load();
   }
 
   return (
-    <AppShell title="Today’s Radar" subtitle="Daily signal board for Ahmedabad, Gandhinagar, and GIFT City">
+    <AppShell title="Today's Radar" subtitle="Daily signal board for Ahmedabad, Gandhinagar, and GIFT City">
       <div className="space-y-4">
         <Panel>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -90,7 +79,7 @@ export function TodayRadarPage() {
             {urgent.map((opportunity) => (
               <OpportunityCard key={opportunity.id} opportunity={opportunity} onMarkApplied={markApplied} />
             ))}
-            {!urgent.length && !loading ? <p className="text-sm text-slate-500">No urgent items yet.</p> : null}
+            {!urgent.length && !loading ? <p className="text-sm text-slate-500">{EMPTY_MSG}</p> : null}
           </div>
         </Panel>
 
@@ -100,7 +89,7 @@ export function TodayRadarPage() {
             {watching.map((opportunity) => (
               <OpportunityCard key={opportunity.id} opportunity={opportunity} onMarkApplied={markApplied} />
             ))}
-            {!watching.length ? <p className="text-sm text-slate-500">Nothing in watching range right now.</p> : null}
+            {!watching.length && !loading ? <p className="text-sm text-slate-500">{EMPTY_MSG}</p> : null}
           </div>
         </Panel>
 
@@ -114,6 +103,7 @@ export function TodayRadarPage() {
               {normal.map((opportunity) => (
                 <OpportunityCard key={opportunity.id} opportunity={opportunity} onMarkApplied={markApplied} />
               ))}
+              {!normal.length ? <p className="text-sm text-slate-500">{EMPTY_MSG}</p> : null}
             </div>
           ) : (
             <p className="text-sm text-slate-500">Collapsed to keep the phone view clean.</p>
@@ -125,7 +115,7 @@ export function TodayRadarPage() {
 }
 
 export function OpportunitiesPage() {
-  const [rows, setRows] = useState<Opportunity[]>(sampleOpportunities);
+  const [rows, setRows] = useState<Opportunity[]>([]);
   const [source, setSource] = useState('all');
   const [score, setScore] = useState('all');
   const [status, setStatus] = useState('all');
@@ -136,15 +126,13 @@ export function OpportunitiesPage() {
   async function load() {
     try {
       const response = await fetchOpportunities();
-      setRows(response.data.length ? response.data : sampleOpportunities);
+      setRows(response.data);
     } catch {
-      setRows(sampleOpportunities);
+      setRows([]);
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const visible = useMemo(
     () => filterOpportunities(rows, { source, score, status, date, date_from: dateFrom, date_to: dateTo }),
@@ -209,16 +197,7 @@ export function OpportunitiesPage() {
           <GhostLink href={`/api/opportunities?format=csv&source=${encodeURIComponent(source)}&score=${encodeURIComponent(score)}&status=${encodeURIComponent(status)}&date=${encodeURIComponent(date)}&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`}>
             Export CSV
           </GhostLink>
-          <Button
-            onClick={() => {
-              setSource('all');
-              setScore('all');
-              setStatus('all');
-              setDate('all');
-              setDateFrom('');
-              setDateTo('');
-            }}
-          >
+          <Button onClick={() => { setSource('all'); setScore('all'); setStatus('all'); setDate('all'); setDateFrom(''); setDateTo(''); }}>
             Reset Filters
           </Button>
         </div>
@@ -226,48 +205,52 @@ export function OpportunitiesPage() {
 
       <Panel className="mt-4 overflow-hidden">
         <SectionTitle eyebrow="Table" title={`${visible.length} visible opportunities`} />
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-line text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Company</th>
-                <th className="px-3 py-2">Role</th>
-                <th className="px-3 py-2">Location</th>
-                <th className="px-3 py-2">Source</th>
-                <th className="px-3 py-2">Score</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((item) => (
-                <tr key={item.id} className="align-top">
-                  <td className="px-3 py-3 text-slate-500">{timeAgo(item.found_at)}</td>
-                  <td className="px-3 py-3 font-medium text-ink">{item.company_name}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.role_title ?? 'Open role'}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.location ?? '-'}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.source}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.priority_score ?? 0}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.status}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      {item.apply_url ? <GhostLink href={item.apply_url}>Apply</GhostLink> : null}
-                      <Button onClick={() => void markApplied(item.id)}>Mark Applied</Button>
-                    </div>
-                  </td>
+        {!visible.length ? (
+          <p className="text-sm text-slate-500">{EMPTY_MSG}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-line text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">Date</th>
+                  <th className="px-3 py-2">Company</th>
+                  <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Location</th>
+                  <th className="px-3 py-2">Source</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {visible.map((item) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="px-3 py-3 text-slate-500">{timeAgo(item.found_at)}</td>
+                    <td className="px-3 py-3 font-medium text-ink">{item.company_name}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.role_title ?? 'Open role'}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.location ?? '-'}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.source}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.priority_score ?? 0}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.status}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        {item.apply_url ? <GhostLink href={item.apply_url}>Apply</GhostLink> : null}
+                        <Button onClick={() => void markApplied(item.id)}>Mark Applied</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
     </AppShell>
   );
 }
 
 export function CompaniesPage() {
-  const [companies, setCompanies] = useState<(Company & { last_signal?: string; last_signal_score?: number })[]>(fallbackTrackedCompanies());
+  const [companies, setCompanies] = useState<(Company & { last_signal?: string; last_signal_score?: number })[]>([]);
 
   async function load() {
     try {
@@ -275,29 +258,25 @@ export function CompaniesPage() {
         fetchCompanies(),
         fetchOpportunities({ date: '7d' }),
       ]);
-      const list = companiesResponse.data.length ? companiesResponse.data : sampleCompanies;
-      const opportunities = opportunitiesResponse.data.length ? opportunitiesResponse.data : sampleOpportunities;
+      const opportunities = opportunitiesResponse.data;
       setCompanies(
-        list.map((company) => {
+        companiesResponse.data.map((company) => {
           const latest = opportunities
             .filter((opportunity) => opportunity.company_name === company.name)
             .sort((a, b) => (b.found_at ?? '').localeCompare(a.found_at ?? ''))[0];
-
           return {
             ...company,
-            last_signal: latest ? `${latest.source} · ${latest.role_title ?? 'Open role'}` : company.notes ?? 'No signal yet',
+            last_signal: latest ? `${latest.source} · ${latest.role_title ?? 'Open role'}` : 'No signal yet',
             last_signal_score: latest?.priority_score ?? company.priority_base_score ?? 0,
           };
         }),
       );
     } catch {
-      setCompanies(fallbackTrackedCompanies());
+      setCompanies([]);
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   async function updateCompany(id: string, updates: Partial<Company>) {
     await patchJson('/api/companies', { id, ...updates });
@@ -307,51 +286,55 @@ export function CompaniesPage() {
   return (
     <AppShell title="Company Watch List" subtitle="Curated set of targets and watch flags">
       <Panel>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-line text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-3 py-2">#</th>
-                <th className="px-3 py-2">Company</th>
-                <th className="px-3 py-2">Tier</th>
-                <th className="px-3 py-2">Location</th>
-                <th className="px-3 py-2">Score</th>
-                <th className="px-3 py-2">Career Watched</th>
-                <th className="px-3 py-2">Last Signal</th>
-                <th className="px-3 py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {companies.map((company, index) => (
-                <tr key={company.id} className="align-top">
-                  <td className="px-3 py-3 text-slate-500">{index + 1}</td>
-                  <td className="px-3 py-3 font-medium text-ink">{company.name}</td>
-                  <td className="px-3 py-3 text-slate-700">{company.tier ?? '-'}</td>
-                  <td className="px-3 py-3 text-slate-700">{company.location ?? '-'}</td>
-                  <td className="px-3 py-3 text-slate-700">{company.last_signal_score ?? company.priority_base_score ?? 0}</td>
-                  <td className="px-3 py-3 text-slate-700">{company.career_page_watched ? 'Yes' : 'No'}</td>
-                  <td className="px-3 py-3 text-slate-700">{company.last_signal ?? 'No signal yet'}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      {company.careers_url ? <GhostLink href={company.careers_url}>Visit Careers</GhostLink> : null}
-                      <PrimaryButton className="px-3 py-2 text-xs" onClick={() => void updateCompany(company.id, { career_page_watched: !company.career_page_watched })}>
-                        {company.career_page_watched ? 'Unwatch' : 'Watch'}
-                      </PrimaryButton>
-                    </div>
-                  </td>
+        {!companies.length ? (
+          <p className="text-sm text-slate-500">{EMPTY_MSG}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-line text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">#</th>
+                  <th className="px-3 py-2">Company</th>
+                  <th className="px-3 py-2">Tier</th>
+                  <th className="px-3 py-2">Location</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">Career Watched</th>
+                  <th className="px-3 py-2">Last Signal</th>
+                  <th className="px-3 py-2">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {companies.map((company, index) => (
+                  <tr key={company.id} className="align-top">
+                    <td className="px-3 py-3 text-slate-500">{index + 1}</td>
+                    <td className="px-3 py-3 font-medium text-ink">{company.name}</td>
+                    <td className="px-3 py-3 text-slate-700">{company.tier ?? '-'}</td>
+                    <td className="px-3 py-3 text-slate-700">{company.location ?? '-'}</td>
+                    <td className="px-3 py-3 text-slate-700">{company.last_signal_score ?? company.priority_base_score ?? 0}</td>
+                    <td className="px-3 py-3 text-slate-700">{company.career_page_watched ? 'Yes' : 'No'}</td>
+                    <td className="px-3 py-3 text-slate-700">{company.last_signal ?? 'No signal yet'}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        {company.careers_url ? <GhostLink href={company.careers_url}>Visit Careers</GhostLink> : null}
+                        <PrimaryButton className="px-3 py-2 text-xs" onClick={() => void updateCompany(company.id, { career_page_watched: !company.career_page_watched })}>
+                          {company.career_page_watched ? 'Unwatch' : 'Watch'}
+                        </PrimaryButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
     </AppShell>
   );
 }
 
 export function ProactivePage() {
-  const [companies, setCompanies] = useState<Company[]>(sampleCompanies);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(sampleOpportunities);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -360,14 +343,13 @@ export function ProactivePage() {
           fetchCompanies(),
           fetchOpportunities({ date: '7d' }),
         ]);
-        setCompanies(companiesResponse.data.length ? companiesResponse.data : sampleCompanies);
-        setOpportunities(opportunitiesResponse.data.length ? opportunitiesResponse.data : sampleOpportunities);
+        setCompanies(companiesResponse.data);
+        setOpportunities(opportunitiesResponse.data);
       } catch {
-        setCompanies(sampleCompanies);
-        setOpportunities(sampleOpportunities);
+        setCompanies([]);
+        setOpportunities([]);
       }
     }
-
     void load();
   }, []);
 
@@ -395,7 +377,6 @@ export function ProactivePage() {
       const fundingSignal = company.funding_stage ? `Recent funding: ${company.funding_stage}` : null;
       const pageChangeSignal = companySignals.find((opportunity) => opportunity.source === 'career_page' && !opportunity.role_title)?.found_at;
       const aiLeaderSignal = companySignals.find((opportunity) => opportunity.source === 'google_search')?.found_at;
-
       return {
         ...company,
         signalReason: fundingSignal ?? (pageChangeSignal ? 'Page updated' : aiLeaderSignal ? 'AI leader hired' : 'Signal detected'),
@@ -403,9 +384,9 @@ export function ProactivePage() {
         contactTitle: company.ai_focus ? `Lead for ${company.ai_focus}` : 'Engineering Manager / Head of AI',
       };
     });
-  const tierSixNoRecentOpportunity = companies.filter((company) => {
-    const hasRecentOpportunity = companyHasDirectJobSignal(company, opportunities, 14);
-    return (company.tier === 5 || company.tier === 6) && !hasRecentOpportunity;
+
+  const tierFiveSixNoRecentOpportunity = companies.filter((company) => {
+    return (company.tier === 5 || company.tier === 6) && !companyHasDirectJobSignal(company, opportunities, 14);
   });
 
   function outreachMessage(company: Company) {
@@ -434,21 +415,19 @@ export function ProactivePage() {
                   <GhostLink href={company.linkedin_url || `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(company.name + ' ' + company.contactTitle)}`}>
                     Find Contact on LinkedIn
                   </GhostLink>
-                  <Button onClick={() => void markReachedOut(company)}>
-                    Mark Reached Out
-                  </Button>
+                  <Button onClick={() => void markReachedOut(company)}>Mark Reached Out</Button>
                   <CopyButton text={outreachMessage(company)} />
                 </div>
               </div>
             ))}
-            {!coldReach.length ? <p className="text-sm text-slate-500">No proactive-only signals in the last 14 days.</p> : null}
+            {!coldReach.length ? <p className="text-sm text-slate-500">{EMPTY_MSG}</p> : null}
           </div>
         </Panel>
 
         <Panel>
           <SectionTitle eyebrow="Section 2" title="Tier 5-6 companies with no recent opportunity" />
           <div className="space-y-3">
-            {tierSixNoRecentOpportunity.map((company) => (
+            {tierFiveSixNoRecentOpportunity.map((company) => (
               <div key={company.id} className="rounded-2xl border border-line p-4">
                 <p className="font-medium text-ink">{company.name}</p>
                 <p className="mt-1 text-sm text-slate-600">{company.location ?? 'Gujarat'} · Tier {company.tier}</p>
@@ -459,7 +438,7 @@ export function ProactivePage() {
                 </div>
               </div>
             ))}
-            {!tierSixNoRecentOpportunity.length ? <p className="text-sm text-slate-500">Every Tier 5-6 company has a recent opportunity signal right now.</p> : null}
+            {!tierFiveSixNoRecentOpportunity.length ? <p className="text-sm text-slate-500">{EMPTY_MSG}</p> : null}
           </div>
         </Panel>
       </div>
@@ -468,21 +447,19 @@ export function ProactivePage() {
 }
 
 export function TrackerPage() {
-  const [rows, setRows] = useState<Opportunity[]>(sampleOpportunities);
+  const [rows, setRows] = useState<Opportunity[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
 
   async function load() {
     try {
       const response = await fetchTracker();
-      setRows(response.data.length ? response.data : sampleOpportunities);
+      setRows(response.data);
     } catch {
-      setRows(sampleOpportunities);
+      setRows([]);
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const visible = statusFilter === 'all' ? rows : rows.filter((row) => row.status === statusFilter);
 
@@ -508,62 +485,67 @@ export function TrackerPage() {
       </Panel>
 
       <Panel className="mt-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-line text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Company</th>
-                <th className="px-3 py-2">Role</th>
-                <th className="px-3 py-2">Applied Date</th>
-                <th className="px-3 py-2">Follow-up Date</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((item) => (
-                <tr key={item.id} className="align-top">
-                  <td className="px-3 py-3 font-medium text-ink">{item.company_name}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.role_title ?? 'Open role'}</td>
-                  <td className="px-3 py-3 text-slate-700">{item.applied_at ? timeAgo(item.applied_at) : '-'}</td>
-                  <td className="px-3 py-3">
-                    <input
-                      type="date"
-                      defaultValue={item.follow_up_date ?? ''}
-                      className="w-full min-w-[10rem] rounded-2xl border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-accent"
-                      onBlur={(event) => {
-                        if (event.target.value !== (item.follow_up_date ?? '')) {
-                          void updateOpportunity(item.id, { follow_up_date: event.target.value || null });
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="px-3 py-3">
-                    <Select value={item.status} onChange={(event) => void updateOpportunity(item.id, { status: event.target.value as Opportunity['status'] })}>
-                      <option value="new">New</option>
-                      <option value="applied">Applied</option>
-                      <option value="followed_up">Followed Up</option>
-                      <option value="interview">Interview</option>
-                      <option value="offer">Offer</option>
-                      <option value="rejected">Rejected</option>
-                    </Select>
-                  </td>
-                  <td className="px-3 py-3">
-                    <Textarea
-                      defaultValue={item.notes ?? ''}
-                      rows={2}
-                      onBlur={(event) => {
-                        if (event.target.value !== (item.notes ?? '')) {
-                          void updateOpportunity(item.id, { notes: event.target.value });
-                        }
-                      }}
-                    />
-                  </td>
+        {!visible.length ? (
+          <p className="text-sm text-slate-500">{EMPTY_MSG}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-line text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">Company</th>
+                  <th className="px-3 py-2">Role</th>
+                  <th className="px-3 py-2">Applied Date</th>
+                  <th className="px-3 py-2">Follow-up Date</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Notes</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {visible.map((item) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="px-3 py-3 font-medium text-ink">{item.company_name}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.role_title ?? 'Open role'}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.applied_at ? timeAgo(item.applied_at) : '-'}</td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="date"
+                        placeholder="Set date"
+                        defaultValue={item.follow_up_date ?? ''}
+                        className="w-full min-w-[10rem] rounded-2xl border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-accent"
+                        onBlur={(event) => {
+                          if (event.target.value !== (item.follow_up_date ?? '')) {
+                            void updateOpportunity(item.id, { follow_up_date: event.target.value || null });
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <Select value={item.status} onChange={(event) => void updateOpportunity(item.id, { status: event.target.value as Opportunity['status'] })}>
+                        <option value="new">New</option>
+                        <option value="applied">Applied</option>
+                        <option value="followed_up">Followed Up</option>
+                        <option value="interview">Interview</option>
+                        <option value="offer">Offer</option>
+                        <option value="rejected">Rejected</option>
+                      </Select>
+                    </td>
+                    <td className="px-3 py-3">
+                      <Textarea
+                        defaultValue={item.notes ?? ''}
+                        rows={2}
+                        onBlur={(event) => {
+                          if (event.target.value !== (item.notes ?? '')) {
+                            void updateOpportunity(item.id, { notes: event.target.value });
+                          }
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="mt-4 grid gap-3 sm:grid-cols-5">
           <Metric label="New" value={rows.filter((item) => item.status === 'new').length} />
           <Metric label="Applied" value={rows.filter((item) => item.status === 'applied').length} />

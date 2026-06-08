@@ -1,0 +1,3 @@
+name,tier,category,location,website,careers_url,linkedin_url,company_size,ai_focus,funding_stage,priority_base_score,google_alert_set,li_alert_set,career_page_watched,notes
+Example AI Company,1,AI Product Companies,Ahmedabad,https://example.com,https://example.com/careers,https://linkedin.com/company/example,51-200,"ML, NLP, GenAI",Series A,85,true,true,true,Top priority AI company in Ahmedabad
+Example IT Services,3,IT Services Growing AI,Gandhinagar,https://exampleit.com,https://exampleit.com/jobs,https://linkedin.com/company/exampleit,100-250,"AI/ML, Data Science",Bootstrapped,70,false,false,false,Growing AI division in Gandhinagar

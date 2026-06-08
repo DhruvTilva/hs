@@ -18,27 +18,41 @@ from scrapers.common import (
     insert_opportunity,
     log_scraper_run,
     md5_text,
-    normalized_lines,
     request_text,
     send_telegram_message,
     unique_preserve_order,
 )
 
-ROLE_PATTERN = re.compile(
-    r"\b(ai|ml|machine learning|data|scientist|engineer|developer|nlp|llm|vision|analytics)\b",
+JOB_TITLE_KEYWORDS = re.compile(
+    r"\b(engineer|scientist|developer|analyst|researcher|consultant|architect|lead|manager|intern)\b",
     re.IGNORECASE,
 )
 
+JOB_ELEMENTS = ["h2", "h3", "h4", "li"]
+JOB_CLASS_PATTERNS = re.compile(r"\b(job|position|opening|title)\b", re.IGNORECASE)
 
-def extract_roles(page_text: str) -> list[str]:
-    roles: list[str] = []
-    for line in normalized_lines(page_text):
-        normalized = re.sub(r"\s+", " ", line).strip(" -|•:\t")
-        if not normalized or len(normalized) < 6 or len(normalized) > 120:
+
+def extract_roles(raw_html: str) -> list[str]:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(raw_html, "html.parser")
+    candidates: list[str] = []
+
+    # collect from structural job elements
+    for tag in soup.find_all(JOB_ELEMENTS):
+        text = tag.get_text(" ", strip=True)
+        if text and len(text) < 60 and JOB_TITLE_KEYWORDS.search(text):
+            candidates.append(text)
+
+    # collect from divs/spans with job-related class names
+    for tag in soup.find_all(["div", "span"]):
+        classes = " ".join(tag.get("class") or [])
+        if not JOB_CLASS_PATTERNS.search(classes):
             continue
-        if ROLE_PATTERN.search(normalized):
-            roles.append(normalized)
-    return unique_preserve_order(roles)[:8]
+        text = tag.get_text(" ", strip=True)
+        if text and len(text) < 60 and JOB_TITLE_KEYWORDS.search(text):
+            candidates.append(text)
+
+    return unique_preserve_order(candidates)[:8]
 
 
 def build_alert(company_name: str, role_title: str, location: str, apply_url: str, score: int) -> str:
@@ -122,7 +136,7 @@ def main() -> int:
                 time.sleep(2)
                 continue
 
-            detected_roles = extract_roles(page_text) or [f"Career page update at {company['name']}"]
+            detected_roles = extract_roles(raw_html) or ["Unknown Role - Check Manually"]
             for role_title in detected_roles:
                 score = calculate_priority_score(
                     signal_type="early",

@@ -570,6 +570,27 @@ Add as many rows as you want. Re-run `python scripts/import_companies_csv.py` to
 
 ---
 
+## Clean Dummy Data from Supabase
+
+Before first use, delete any rows from the `opportunities` table that were inserted before scrapers were fixed or contain dummy text:
+
+```sql
+DELETE FROM opportunities
+WHERE notes IN (
+  'Career page changed this morning.',
+  'Applied via link in alert.',
+  'Worth monitoring.'
+)
+OR (
+  role_title IN ('ML Engineer', 'Data Scientist', 'AI Engineer', 'Applied AI Developer')
+  AND found_at < NOW() - INTERVAL '1 day'
+);
+```
+
+Run this once in **Supabase → SQL Editor** after setting up for the first time.
+
+---
+
 ## Troubleshooting
 
 **Dashboard shows sample data instead of real data**
