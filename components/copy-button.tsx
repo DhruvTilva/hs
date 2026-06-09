@@ -8,10 +8,21 @@ export function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center justify-center rounded-full border border-line px-3 py-2 text-sm font-medium transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: '9999px',
+        border: '1px solid var(--border)',
+        backgroundColor: 'var(--bg-card)',
+        color: 'var(--text-secondary)',
+        padding: '0.4rem 0.85rem',
+        fontSize: '0.8rem',
+        fontWeight: 500,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s, color 0.15s',
+      }}
       onClick={async () => {
         await navigator.clipboard.writeText(text);
-        setLabel('Copied');
+        setLabel('Copied ✓');
         window.setTimeout(() => setLabel('Copy Message'), 1500);
       }}
     >

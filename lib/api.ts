@@ -4,6 +4,9 @@ import type {
   Opportunity,
   OpportunitySource,
   OpportunityStatus,
+  ScraperLog,
+  TrackerSummary,
+  WeeklyStats,
 } from '@/lib/types';
 
 export type OpportunityFilters = {
@@ -84,6 +87,35 @@ export async function fetchCompanies(): Promise<ApiListResponse<Company>> {
 
 export async function fetchTracker(): Promise<ApiListResponse<Opportunity>> {
   return fetchJson<ApiListResponse<Opportunity>>('/api/tracker');
+}
+
+export async function fetchWeeklyStats(): Promise<WeeklyStats> {
+  return fetchJson<WeeklyStats>('/api/weekly-stats');
+}
+
+export async function fetchTrackerSummary(): Promise<TrackerSummary> {
+  return fetchJson<TrackerSummary>('/api/tracker-summary');
+}
+
+export async function fetchFollowUps(): Promise<ApiListResponse<Opportunity>> {
+  return fetchJson<ApiListResponse<Opportunity>>('/api/opportunities?followup=today');
+}
+
+export async function fetchProactive(): Promise<ApiListResponse<Opportunity>> {
+  return fetchJson<ApiListResponse<Opportunity>>('/api/opportunities?signal_type=proactive');
+}
+
+export async function fetchScraperStatus(): Promise<{
+  last_run: string | null;
+  hours_ago: number | null;
+  next_run: string;
+  logs: ScraperLog[];
+}> {
+  return fetchJson('/api/scraper-status');
+}
+
+export async function triggerScraper(): Promise<{ success: boolean; error?: string }> {
+  return fetchJson('/api/trigger-scraper', { method: 'POST' });
 }
 
 export function filterOpportunities(opportunities: Opportunity[], filters: OpportunityFilters): Opportunity[] {

@@ -79,6 +79,22 @@ export interface ScraperLog {
   status: string | null;
 }
 
+export interface WeeklyStats {
+  found_this_week: number;
+  applied: number;
+  interviews: number;
+  followups_due: number;
+}
+
+export interface TrackerSummary {
+  new: number;
+  applied: number;
+  followed_up: number;
+  interview: number;
+  offer: number;
+  rejected: number;
+}
+
 export interface ApiListResponse<T> {
   data: T[];
   fallback: boolean;

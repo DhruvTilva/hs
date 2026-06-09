@@ -21,21 +21,50 @@ function toCsv(rows: Opportunity[]) {
 
 async function readRows(): Promise<{ data: Opportunity[]; fallback: boolean }> {
   const client = createServerSupabase();
-  if (!client) {
-    return { data: sampleOpportunities, fallback: true };
-  }
+  if (!client) return { data: sampleOpportunities, fallback: true };
 
-  const { data, error } = await client.from('opportunities').select('*').order('found_at', { ascending: false });
-  if (error || !data) {
-    return { data: sampleOpportunities, fallback: true };
-  }
+  const { data, error } = await client
+    .from('opportunities')
+    .select('*')
+    .order('found_at', { ascending: false });
 
+  if (error || !data) return { data: sampleOpportunities, fallback: true };
   return { data: data as Opportunity[], fallback: false };
 }
 
 export async function GET(request: NextRequest) {
-  const rows = await readRows();
   const params = request.nextUrl.searchParams;
+  const followup = params.get('followup');
+  const signalType = params.get('signal_type');
+
+  // Special query: follow-ups due today
+  if (followup === 'today') {
+    const client = createServerSupabase();
+    if (!client) return response([], false);
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await client
+      .from('opportunities')
+      .select('*')
+      .lte('follow_up_date', today)
+      .not('status', 'in', '("rejected","offer")')
+      .order('follow_up_date', { ascending: true });
+    return response((data ?? []) as Opportunity[], false);
+  }
+
+  // Special query: proactive signal type
+  if (signalType) {
+    const client = createServerSupabase();
+    if (!client) return response([], false);
+    const { data } = await client
+      .from('opportunities')
+      .select('*')
+      .eq('signal_type', signalType)
+      .eq('status', 'new')
+      .order('found_at', { ascending: false });
+    return response((data ?? []) as Opportunity[], false);
+  }
+
+  const rows = await readRows();
   const filter = params.get('filter') || 'all';
   const filtered = filterOpportunities(rows.data, {
     source: params.get('source') || 'all',
@@ -61,15 +90,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Partial<Opportunity>;
   const client = createServerSupabase();
-  if (!client) {
-    return NextResponse.json({ ok: true, fallback: true, data: body });
-  }
+  if (!client) return NextResponse.json({ ok: true, fallback: true, data: body });
 
   const { data, error } = await client.from('opportunities').insert(body).select('*').single();
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
-  }
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true, fallback: false, data });
 }
 
@@ -82,16 +106,11 @@ export async function PATCH(request: NextRequest) {
     applied_at?: string | null;
   };
   const client = createServerSupabase();
-  if (!client) {
-    return NextResponse.json({ ok: true, fallback: true, data: body });
-  }
-
-  if (!body.id) {
-    return NextResponse.json({ ok: false, error: 'Missing opportunity id' }, { status: 400 });
-  }
+  if (!client) return NextResponse.json({ ok: true, fallback: true, data: body });
+  if (!body.id) return NextResponse.json({ ok: false, error: 'Missing opportunity id' }, { status: 400 });
 
   const updates: Record<string, unknown> = {};
-  if (body.status) updates.status = body.status;
+  if (body.status !== undefined) updates.status = body.status;
   if (body.follow_up_date !== undefined) updates.follow_up_date = body.follow_up_date;
   if (body.notes !== undefined) updates.notes = body.notes;
   if (body.applied_at !== undefined) updates.applied_at = body.applied_at;
@@ -100,9 +119,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { data, error } = await client.from('opportunities').update(updates).eq('id', body.id).select('*').single();
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
-  }
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true, fallback: false, data });
 }
