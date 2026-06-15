@@ -49,6 +49,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/companies':     '🏢 Company Watch List',
   '/proactive':     '🎯 Proactive Outreach',
   '/tracker':       '📋 Application Tracker',
+  '/interview':     '🎯 Interview Intelligence',
 };
 
 /* ── Mobile nav config ───────────────────────────────────── */
@@ -57,6 +58,7 @@ const MOB_NAV = [
   { href: '/opportunities',  icon: '💼', label: 'Jobs'      },
   { href: '/companies',      icon: '🏢', label: 'Companies' },
   { href: '/tracker',        icon: '📋', label: 'Tracker'   },
+  { href: '/interview',      icon: '🎯', label: 'Interview' },
 ];
 
 /* ── AppShell ────────────────────────────────────────────── */

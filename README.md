@@ -625,3 +625,36 @@ Run this once in **Supabase → SQL Editor** after setting up for the first time
 - Each scraper step is independent; a failure in one does not block the rest.
 - Go to **Actions → the failed run → expand the failed step** to read the Python traceback.
 - The most common cause is a missing or expired secret. Re-add it under **Settings → Secrets**.
+
+---
+
+## Interview Intelligence Setup
+
+A built-in AI feature that researches interview experiences from Glassdoor, Reddit, and AmbitionBox, then generates a structured intelligence report using Gemini.
+
+### Setup steps
+
+1. **Get a free Gemini API key**: Go to [aistudio.google.com](https://aistudio.google.com), sign in, and create an API key.
+2. **Add to `.env.local`**:
+   ```env
+   GEMINI_API_KEY=your_key_here
+   ```
+3. **Optional — Google Custom Search** (for richer results):
+   - Create a Custom Search Engine at [programmablesearchengine.google.com](https://programmablesearchengine.google.com).
+   - Get an API key from [console.cloud.google.com](https://console.cloud.google.com) → APIs → Custom Search JSON API.
+   - Add to `.env.local`:
+     ```env
+     GOOGLE_SEARCH_KEY=your_google_key
+     GOOGLE_SEARCH_CX=your_search_engine_id
+     ```
+   - If `GOOGLE_SEARCH_KEY` is not set, the feature falls back to `SERPAPI_KEY` (if configured), then to Gemini-only mode using just the job description.
+4. **Visit `/interview`** in your dashboard to use the feature.
+
+### How it works
+
+1. Runs 8 searches in parallel across Glassdoor, Reddit, and AmbitionBox.
+2. Combines all snippets into a context blob (max 8 000 chars).
+3. Sends everything to `gemini-2.0-flash` with a structured prompt.
+4. Returns a full intelligence report: interview rounds, most-asked questions (with category tabs), topics to prepare, candidate tips, smart questions to ask, and salary/red-flag signals.
+
+The feature degrades gracefully — if no search APIs are configured, Gemini generates advice from general patterns and the job description alone.
