@@ -658,3 +658,96 @@ A built-in AI feature that researches interview experiences from Glassdoor, Redd
 4. Returns a full intelligence report: interview rounds, most-asked questions (with category tabs), topics to prepare, candidate tips, smart questions to ask, and salary/red-flag signals.
 
 The feature degrades gracefully — if no search APIs are configured, Gemini generates advice from general patterns and the job description alone.
+
+---
+
+## Company Discovery Setup — Run this SQL in Supabase
+
+Before using the `/discover` page, run the following SQL in your Supabase project (**SQL Editor → New query**):
+
+```sql
+CREATE TABLE discovered_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  location TEXT,
+  website TEXT,
+  linkedin_url TEXT,
+  github_url TEXT,
+  founded_year INTEGER,
+  team_size TEXT,
+  funding_amount TEXT,
+  funding_stage TEXT,
+  investor_names TEXT,
+  founder_names TEXT,
+  founder_background TEXT,
+  ai_ml_signals TEXT,
+  source TEXT,
+  source_url TEXT,
+  news_mentions INTEGER DEFAULT 0,
+  has_website BOOLEAN DEFAULT FALSE,
+  has_linkedin BOOLEAN DEFAULT FALSE,
+  has_github BOOLEAN DEFAULT FALSE,
+  has_funding BOOLEAN DEFAULT FALSE,
+  has_technical_founder BOOLEAN DEFAULT FALSE,
+  is_registered_pvt_ltd BOOLEAN DEFAULT FALSE,
+  government_grant BOOLEAN DEFAULT FALSE,
+  potential_score INTEGER DEFAULT 0,
+  potential_tier TEXT,
+  added_to_watchlist BOOLEAN DEFAULT FALSE,
+  reached_out BOOLEAN DEFAULT FALSE,
+  reached_out_date DATE,
+  skip BOOLEAN DEFAULT FALSE,
+  notes TEXT,
+  raw_data JSONB,
+  discovered_at TIMESTAMP DEFAULT NOW(),
+  last_updated TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX discovered_companies_name_idx
+ON discovered_companies(LOWER(name));
+```
+
+### How to use Company Discovery
+
+1. **Run the SQL above** in Supabase to create the table.
+2. **Visit `/discover`** in your dashboard.
+3. Click **⚡ Run Now** to trigger the discovery scanner (or wait for the Sunday 6:30 AM IST auto-run).
+4. The scanner will search Google News, Startup India, and GIFT City for AI/ML companies in Ahmedabad/Gandhinagar.
+5. Each discovered company is scored (0–100) and filtered — only medium+ potential companies are saved.
+
+### How the Potential Score works
+
+| Signal | Points |
+|---|---|
+| Has funding | +30 |
+| LinkedIn present | +15 |
+| Real website | +15 |
+| Technical founder | +15 |
+| GitHub activity | +10 |
+| News mentions | +10 |
+| Team size 3+ | +10 |
+| Government grant | +5 |
+
+- **🔴 High Potential** (≥70): Apply/reach out immediately
+- **🟡 Monitor** (40–69): Track and reach out when timing is right
+- **🟢 Too Early** (<40): Watch but don't invest time yet
+
+### Actions per company card
+
+| Action | Effect |
+|---|---|
+| ➕ Add to Watch List | Adds to your `companies` table (career page watcher starts) |
+| 📋 Copy Outreach Message | Copies a pre-written cold outreach message |
+| 🔍 Find Contacts | Opens LinkedIn people search for the company |
+| ✓ Mark Reached Out | Records outreach date |
+| ✗ Skip | Hides the company from the list |
+
+### Optional: SerpAPI for richer results
+
+Add to `.env.local`:
+```env
+SERPAPI_KEY=your_serpapi_key
+```
+
+Without SerpAPI the scraper uses direct Google requests (best-effort, may be rate-limited).
+

@@ -144,3 +144,50 @@ export type CompanyRecord = {
   notes: string | null;
   created_at: string | null;
 };
+
+// ── Company Discovery ──────────────────────────────────────────────────────────
+
+export interface DiscoveredCompany {
+  id: string
+  name: string
+  location: string | null
+  website: string | null
+  linkedin_url: string | null
+  github_url: string | null
+  founded_year: number | null
+  team_size: string | null
+  funding_amount: string | null
+  funding_stage: string | null
+  investor_names: string | null
+  founder_names: string | null
+  founder_background: string | null
+  ai_ml_signals: string | null
+  source: string | null
+  source_url: string | null
+  news_mentions: number
+  has_website: boolean
+  has_linkedin: boolean
+  has_github: boolean
+  has_funding: boolean
+  has_technical_founder: boolean
+  is_registered_pvt_ltd: boolean
+  government_grant: boolean
+  potential_score: number
+  potential_tier: string | null
+  added_to_watchlist: boolean
+  reached_out: boolean
+  reached_out_date: string | null
+  skip: boolean
+  notes: string | null
+  discovered_at: string
+}
+
+export interface DiscoveryStats {
+  total: number
+  high: number
+  medium: number
+  low: number
+  added: number
+  reached_out: number
+}
+
