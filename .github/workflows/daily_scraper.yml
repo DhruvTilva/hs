@@ -2,9 +2,11 @@ name: Daily Job Radar Scraper
 
 on:
   schedule:
-    - cron: '30 0 * * *'
-    - cron: '30 6 * * *'
-    - cron: '30 12 * * *'
+    # We trigger ~45 mins early on 'odd' minutes (47, 17) to bypass GitHub's massive queue
+    # Results will be fully scraped and ready in the dashboard exactly by target time.
+    - cron: '47 3 * * *'   # Runs 09:17 AM IST (Target: 10:00 AM)
+    - cron: '17 9 * * *'   # Runs 02:47 PM IST (Target: 3:30 PM)
+    - cron: '47 14 * * *'  # Runs 08:17 PM IST (Target: 9:00 PM)
   workflow_dispatch:
 
 jobs:

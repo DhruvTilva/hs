@@ -3,14 +3,14 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase';
 import type { ScraperLog } from '@/lib/types';
 
-const IST_RUN_HOURS = [6, 12, 18];
+const IST_RUN_HOURS = [10, 15.5, 21];
 
 function nextRunIST(): string {
   const istOffsetMs = 5.5 * 60 * 60 * 1000;
   const nowIst = new Date(Date.now() + istOffsetMs);
   const currentHour = nowIst.getUTCHours() + nowIst.getUTCMinutes() / 60;
   const next = IST_RUN_HOURS.find((h) => h > currentHour) ?? IST_RUN_HOURS[0];
-  return next === 6 ? '6:00 AM IST' : next === 12 ? '12:00 PM IST' : '6:00 PM IST';
+  return next === 10 ? '10:00 AM IST' : next === 15.5 ? '3:30 PM IST' : '9:00 PM IST';
 }
 
 export async function GET() {
