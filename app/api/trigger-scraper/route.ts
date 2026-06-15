@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const token = process.env.GITHUB_TOKEN;
   const repo  = process.env.GITHUB_REPO;
 
@@ -11,9 +11,15 @@ export async function POST() {
     );
   }
 
+  let workflow = 'daily_scraper.yml';
+  try {
+    const body = await req.json();
+    if (body.workflow) workflow = body.workflow;
+  } catch {}
+
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${repo}/actions/workflows/daily_scraper.yml/dispatches`,
+      `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`,
       {
         method: 'POST',
         headers: {

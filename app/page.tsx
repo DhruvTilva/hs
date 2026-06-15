@@ -334,8 +334,9 @@ export default function HomePage() {
               { href: '/companies',    label: 'Companies'     },
               { href: '/proactive',    label: 'Proactive'     },
               { href: '/tracker',      label: 'Tracker'       },
-              { href: '/interview',    label: '🎯 Interview'          },
+              { href: '/interview',    label: '🧠 Interview'          },
               { href: '/discover',    label: '🔭 Discover'           },
+              { href: '/guide',       label: '📖 Guide'              },
             ].map((l) => (
               <a key={l.href} href={l.href} style={{
                 fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.25rem 0.6rem',

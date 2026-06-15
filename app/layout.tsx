@@ -26,8 +26,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           <a href="/companies" className="mobile-nav-item"><span className="mobile-nav-icon">🏢</span>Companies</a>
           <a href="/tracker" className="mobile-nav-item"><span className="mobile-nav-icon">📋</span>Tracker</a>
           <a href="/proactive" className="mobile-nav-item"><span className="mobile-nav-icon">🎯</span>Proactive</a>
-          <a href="/interview" className="mobile-nav-item"><span className="mobile-nav-icon">🎯</span>Interview</a>
+          <a href="/interview" className="mobile-nav-item"><span className="mobile-nav-icon">🧠</span>Interview</a>
           <a href="/discover" className="mobile-nav-item"><span className="mobile-nav-icon">🔭</span>Discover</a>
+          <a href="/guide" className="mobile-nav-item"><span className="mobile-nav-icon">📖</span>Guide</a>
         </nav>
       </body>
     </html>
