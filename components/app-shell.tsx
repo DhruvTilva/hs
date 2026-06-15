@@ -59,8 +59,9 @@ const MOB_NAV = [
   { href: '/opportunities',  icon: '💼', label: 'Jobs'      },
   { href: '/companies',      icon: '🏢', label: 'Companies' },
   { href: '/tracker',        icon: '📋', label: 'Tracker'   },
+  { href: '/proactive',      icon: '🎯', label: 'Proactive' },
   { href: '/interview',      icon: '🎯', label: 'Interview' },
-  { href: '/discover',      icon: '🔭', label: 'Discover' },
+  { href: '/discover',       icon: '🔭', label: 'Discover'  },
 ];
 
 /* ── AppShell ────────────────────────────────────────────── */
