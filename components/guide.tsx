@@ -53,7 +53,7 @@ export function GuidePage() {
     {
       id: 'daily_scraper.yml',
       title: 'Daily Job Radar Scraper',
-      frequency: 'Every Day (Morning, Noon, Evening)',
+      frequency: 'Every Day (6:00 AM, 12:00 PM, 6:00 PM IST)',
       description: 'Scrapes Career Pages, Naukri, Indeed, Wellfound, and processes Gmail and Google Searches.',
     },
     {
