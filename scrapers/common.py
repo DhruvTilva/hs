@@ -222,3 +222,53 @@ def fetch_company_lookup(client: Client | None) -> dict[str, dict[str, Any]]:
         if name:
             lookup[name] = row
     return lookup
+
+
+def send_scraper_completion_notification(source_title: str, inserted_opps: list[Opportunity]) -> None:
+    if not inserted_opps:
+        send_telegram_message(f"✅ {source_title} Completed!\nNew Jobs added: 0")
+        return
+
+    from collections import Counter
+    
+    roles = Counter()
+    cities = Counter()
+    for opp in inserted_opps:
+        # Group roles intelligently
+        role_raw = (opp.role_title or "Unknown Role").lower()
+        if "ai engineer" in role_raw or "artificial intelligence" in role_raw:
+            roles["AI Engineer"] += 1
+        elif "ml engineer" in role_raw or "machine learning" in role_raw:
+            roles["ML Engineer"] += 1
+        elif "data scientist" in role_raw:
+            roles["Data Scientist"] += 1
+        elif "genai" in role_raw or "generative ai" in role_raw or "llm" in role_raw:
+            roles["GenAI Developer"] += 1
+        elif "data engineer" in role_raw:
+            roles["Data Engineer"] += 1
+        elif "computer vision" in role_raw or "nlp" in role_raw:
+            roles["CV / NLP Engineer"] += 1
+        else:
+            roles["Other AI Roles"] += 1
+        
+        # Group cities intelligently
+        loc_raw = (opp.location or "Unknown Location").lower()
+        if "ahmedabad" in loc_raw:
+            cities["Ahmedabad"] += 1
+        elif "gandhinagar" in loc_raw or "gift city" in loc_raw or "giftcity" in loc_raw:
+            cities["Gandhinagar / GIFT City"] += 1
+        elif "remote" in loc_raw or "work from home" in loc_raw or "wfh" in loc_raw or "india" in loc_raw:
+            cities["India / Remote"] += 1
+        else:
+            cities[opp.location.strip().title() if opp.location else "Unknown"] += 1
+
+    lines = [f"✅ {source_title} Completed!", f"New Jobs added: {len(inserted_opps)}", "", "Role:"]
+    for role, count in roles.most_common():
+        lines.append(f"{role} - {count} job{'s' if count > 1 else ''}")
+
+    lines.extend(["", "City:"])
+    for city, count in cities.most_common():
+        lines.append(f"{city} - {count} job{'s' if count > 1 else ''}")
+
+    send_telegram_message("\n".join(lines))
+

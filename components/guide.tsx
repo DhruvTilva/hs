@@ -51,10 +51,39 @@ export function GuidePage() {
 
   const automations = [
     {
-      id: 'daily_scraper.yml',
-      title: 'Daily Job Radar Scraper',
-      frequency: 'Every Day (10:00 AM, 3:30 PM, 9:00 PM IST)',
-      description: 'Scrapes Career Pages, Naukri, Indeed, Wellfound, and processes Gmail and Google Searches.',
+      id: 'scrape_naukri.yml',
+      title: 'Naukri Scraper',
+      frequency: 'Every Day at 10:00 AM IST',
+      description: 'Scrapes Naukri for new jobs.',
+      source_filter: 'naukri',
+    },
+    {
+      id: 'scrape_google.yml',
+      title: 'Google & Career Pages',
+      frequency: 'Every Day at 11:00 AM IST',
+      description: 'Processes Career Pages and Google Searches.',
+      source_filter: 'google',
+    },
+    {
+      id: 'scrape_indeed.yml',
+      title: 'Indeed Scraper',
+      frequency: 'Every Day at 3:30 PM IST',
+      description: 'Scrapes Indeed for new jobs.',
+      source_filter: 'indeed',
+    },
+    {
+      id: 'scrape_wellfound.yml',
+      title: 'Wellfound Scraper',
+      frequency: 'Every Day at 9:00 PM IST',
+      description: 'Scrapes Wellfound for new jobs.',
+      source_filter: 'wellfound',
+    },
+    {
+      id: 'daily_summary.yml',
+      title: 'Daily Summary Report',
+      frequency: 'Every Day at 10:00 PM IST',
+      description: 'Sends the daily job digest to Telegram.',
+      source_filter: 'send_daily_summary',
     },
     {
       id: 'company_discovery.yml',
@@ -340,14 +369,14 @@ Best,
                       </button>
                     </div>
                     
-                    {auto.id === 'daily_scraper.yml' && status?.logs && status.logs.length > 0 && (
+                    {status?.logs && status.logs.length > 0 && (
                       <details style={{ borderTop: '1px solid var(--border)' }}>
                         <summary style={{ padding: '0.85rem 1.25rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)', outline: 'none', userSelect: 'none' }}>
                           <span style={{ color: 'var(--text-secondary)' }}>Show Latest Run Logs</span>
                         </summary>
-                        <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'color-mix(in srgb, var(--bg-card) 30%, transparent)' }}>
-                          {status.logs.slice(0, 5).map((log: any) => (
-                            <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', background: 'var(--bg-card)', padding: '0.6rem 0.85rem', borderRadius: '0.35rem', border: '1px solid var(--border)' }}>
+                        <div className="logs-list" style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'color-mix(in srgb, var(--bg-card) 30%, transparent)' }}>
+                          {status?.logs?.filter((l: any) => !auto.source_filter || l.source?.includes(auto.source_filter)).slice(0, 5).map((log: any) => (
+                            <div key={log.id} className={`log-item log-${log.status}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', background: 'var(--bg-card)', padding: '0.6rem 0.85rem', borderRadius: '0.35rem', border: '1px solid var(--border)' }}>
                               <span>
                                 <strong style={{ color: 'var(--text-primary)' }}>{log.source}</strong> 
                                 <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>{new Date(log.run_at).toLocaleString()}</span>

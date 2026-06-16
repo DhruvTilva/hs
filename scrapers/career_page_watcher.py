@@ -21,6 +21,7 @@ from scrapers.common import (
     request_text,
     send_telegram_message,
     unique_preserve_order,
+    send_scraper_completion_notification,
 )
 
 JOB_TITLE_KEYWORDS = re.compile(
@@ -104,6 +105,7 @@ def main() -> int:
 
     new_found = 0
     errors: list[str] = []
+    inserted_opps = []
 
     for company in companies:
         try:
@@ -145,22 +147,21 @@ def main() -> int:
                     location=company.get("location") or "",
                     company_tier=company.get("tier"),
                 )
-                inserted = insert_opportunity(
-                    client,
-                    Opportunity(
-                        company_name=company["name"],
-                        role_title=role_title,
-                        location=company.get("location"),
-                        source="career_page",
-                        signal_type="early",
-                        apply_url=careers_url,
-                        priority_score=score,
-                        freshness_score=35,
-                        raw_data={"company_id": company["id"], "page_hash": page_hash},
-                    ),
+                opp = Opportunity(
+                    company_name=company["name"],
+                    role_title=role_title,
+                    location=company.get("location"),
+                    source="career_page",
+                    signal_type="early",
+                    apply_url=careers_url,
+                    priority_score=score,
+                    freshness_score=35,
+                    raw_data={"company_id": company["id"], "page_hash": page_hash},
                 )
+                inserted = insert_opportunity(client, opp)
                 if inserted:
                     new_found += 1
+                    inserted_opps.append(opp)
                     send_telegram_message(
                         build_alert(
                             company["name"],
@@ -182,6 +183,9 @@ def main() -> int:
         new_found,
         "\n".join(errors) if errors else None,
     )
+
+    send_scraper_completion_notification("Career Page Watcher", inserted_opps)
+
     return 0
 
 

@@ -18,6 +18,7 @@ from scrapers.common import (
     insert_opportunity,
     log_scraper_run,
     request_json,
+    send_scraper_completion_notification,
 )
 
 QUERIES = [
@@ -92,6 +93,7 @@ def main() -> int:
     company_lookup = fetch_company_lookup(client)
     new_found = 0
     errors: list[str] = []
+    inserted_opps = []
 
     for query in QUERIES:
         try:
@@ -148,6 +150,24 @@ def main() -> int:
                 )
                 if inserted:
                     new_found += 1
+                    inserted_opps.append(
+                        Opportunity(
+                            company_name=company_name,
+                            role_title=title,
+                            location=location,
+                            source="google_search",
+                            signal_type=signal_type,
+                            apply_url=link,
+                            priority_score=score,
+                            freshness_score=25,
+                            raw_data={
+                                "query": query,
+                                "snippet": snippet,
+                                "date": date,
+                                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                            },
+                        )
+                    )
             time.sleep(1)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{query}: {exc}")
@@ -159,6 +179,9 @@ def main() -> int:
         new_found,
         "\n".join(errors) if errors else None,
     )
+
+    send_scraper_completion_notification("Google Search Scraper", inserted_opps)
+
     return 0
 
 

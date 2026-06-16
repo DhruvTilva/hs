@@ -28,6 +28,7 @@ from scrapers.common import (
     get_supabase_client,
     log_scraper_run,
     send_telegram_message,
+    send_scraper_completion_notification,
 )
 
 # ─────────────────────────────────────────────────────────────
@@ -703,6 +704,7 @@ def insert_with_dedup(client: Any, opp: Opportunity, job_key: str, stats: dict[s
     try:
         client.table("opportunities").insert(asdict(opp)).execute()
         stats["total_inserted"] += 1
+        stats.setdefault("inserted_opps", []).append(opp)
         return True
     except Exception as exc:
         stats.setdefault("_errors", []).append(f"insert error: {exc}")
@@ -1010,7 +1012,8 @@ def main() -> int:
     except Exception as exc:
         print(f"Warning: could not write scraper_log: {exc}")
 
-    print("✅ Indeed Scraper done.")
+    send_scraper_completion_notification("Indeed Scraper", stats.get("inserted_opps", []))
+
     return 0
 
 

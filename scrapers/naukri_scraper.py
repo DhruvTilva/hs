@@ -26,6 +26,7 @@ from scrapers.common import (
     log_scraper_run,
     parse_datetime,
     send_telegram_message,
+    send_scraper_completion_notification,
 )
 
 # ─────────────────────────────────────────────────────────────
@@ -511,6 +512,7 @@ def insert_with_dedup(
         payload = asdict(opp)
         client.table("opportunities").insert(payload).execute()
         stats["inserted"] += 1
+        stats["inserted_opps"].append(opp)
         return True
     except Exception as exc:
         stats["errors"].append(f"insert error for {opp.company_name}: {exc}")
@@ -651,6 +653,7 @@ def main() -> int:
         "skipped_no_ai": 0,
         "blocked_count": 0,
         "errors": [],
+        "inserted_opps": [],
     }
 
     request_counter = 0
@@ -741,6 +744,8 @@ def main() -> int:
         }).execute()
     except Exception as exc:
         print(f"Warning: could not write scraper_log: {exc}")
+
+    send_scraper_completion_notification("Naukri Scraper", stats["inserted_opps"])
 
     return 0
 
