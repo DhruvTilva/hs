@@ -2,7 +2,7 @@ name: Scrape Indeed
 
 on:
   schedule:
-    - cron: '17 9 * * *'
+    # - cron: '17 9 * * *'
   workflow_dispatch:
 
 jobs:
