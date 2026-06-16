@@ -1,8 +1,8 @@
 name: Scrape Wellfound
 
 on:
-  schedule:
-    # - cron: '17 15 * * *'
+#   schedule:
+#     - cron: '17 15 * * *'
   workflow_dispatch:
 
 jobs:
