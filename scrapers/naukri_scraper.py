@@ -62,6 +62,15 @@ LOCATIONS_PRIMARY: list[str] = [
     "Ahmedabad", "Gandhinagar", "GIFT City", "Giftcity-Ahmedabad", "Giftcity-gandhinagar", "Gujarat",
 ]
 
+HARD_REJECT_ROLES: list[str] = [
+    "voice process", "international voice", "customer support", "process associate", 
+    "call center", "telecaller", "sales", "marketing", "business development", 
+    "hr recruiter", "accountant", "manual tester", "automation qa", "qa engineer",
+    "frontend developer", "backend developer", "full stack developer", "java developer", 
+    "php developer", ".net developer", "android developer", "react developer", 
+    "system administrator", "network engineer", "test engineer"
+]
+
 LOCATIONS_SECONDARY: list[str] = [
     "India", "Work from home",
 ]
@@ -262,9 +271,26 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             stats["errors"].append(f"Skipping opportunity: company name contains only city names ({c_name}) for {url}")
             continue
 
+        # Strict AI/ML Rejection Rules
+        r_title_lower = r_title.lower()
+        if any(rej in r_title_lower for rej in HARD_REJECT_ROLES):
+            stats["errors"].append(f"[REJECT] Role: '{r_title}' | Hit hard-reject list for {url}")
+            continue
+            
+        desc_lower = r.get("body", "").lower()
+        
+        has_primary_kw = any(kw.lower() in r_title_lower for kw in PRIMARY_KEYWORDS)
+        has_strong_desc = any(kw.lower() in desc_lower for kw in ["machine learning", "artificial intelligence", "deep learning", "nlp", "llm", "genai", "computer vision", "data science"])
+        
+        if not has_primary_kw and not has_strong_desc:
+            stats["errors"].append(f"[REJECT] Role: '{r_title}' | No AI/ML keywords found in title or description for {url}")
+            continue
+
         if not validate_naukri_url(url):
             stats["errors"].append(f"Skipping opportunity: job is expired ({url})")
             continue
+            
+        print(f"  [OK] Valid AI/ML Role found: '{r_title}' at {c_name}")
         
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
