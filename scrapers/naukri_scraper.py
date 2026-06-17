@@ -234,20 +234,33 @@ def main() -> int:
         "inserted_opps": [],
     }
 
+    import os
+    is_test = os.getenv("TEST_MODE", "false").lower() == "true"
+    
+    if is_test:
+        print("Running in TEST_MODE (limited queries)")
+        kw_limit1, loc_limit1 = 2, 1
+        kw_limit2, loc_limit2 = 1, 1
+        kw_limit3 = 1
+    else:
+        kw_limit1, loc_limit1 = 20, None
+        kw_limit2, loc_limit2 = 15, None
+        kw_limit3 = None
+
     print("\n=== PASS 1: Primary keywords × Gujarat locations ===")
-    for keyword in PRIMARY_KEYWORDS[:20]:
-        for location in LOCATIONS_PRIMARY:
+    for keyword in PRIMARY_KEYWORDS[:kw_limit1]:
+        for location in LOCATIONS_PRIMARY[:loc_limit1]:
             run_query(keyword, location, stats, client, company_tiers)
             time.sleep(random.uniform(2.0, 4.0))
 
     print("\n=== PASS 2: Remote/WFH roles ===")
-    for keyword in PRIMARY_KEYWORDS[:15]:
-        for location in LOCATIONS_SECONDARY:
+    for keyword in PRIMARY_KEYWORDS[:kw_limit2]:
+        for location in LOCATIONS_SECONDARY[:loc_limit2]:
             run_query(keyword, location, stats, client, company_tiers)
             time.sleep(random.uniform(2.0, 4.0))
 
     print("\n=== PASS 3: Remaining keywords × Ahmedabad ===")
-    for keyword in PRIMARY_KEYWORDS[20:]:
+    for keyword in PRIMARY_KEYWORDS[20:20+kw_limit3] if kw_limit3 else PRIMARY_KEYWORDS[20:]:
         run_query(keyword, "Ahmedabad", stats, client, company_tiers)
         time.sleep(random.uniform(1.5, 3.5))
 
