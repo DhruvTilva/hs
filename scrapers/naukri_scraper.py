@@ -6,7 +6,9 @@ from datetime import datetime, timezone
 from typing import Any
 import sys
 import requests
+import re
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -294,8 +296,24 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
-        # DDG results are not necessarily "fresh", so we assume 24 hours
+        
+        # Extract posted date from DuckDuckGo snippet if available
         hours_old = 24.0
+        job_posted_at = None
+        match = re.search(r'(\d+)\+?\s*(day|hour|week|month)s?\s*ago', desc_lower, re.IGNORECASE)
+        if match:
+            val = int(match.group(1))
+            unit = match.group(2).lower()
+            if unit == "hour":
+                hours_old = float(val)
+            elif unit == "day":
+                hours_old = float(val * 24)
+            elif unit == "week":
+                hours_old = float(val * 24 * 7)
+            elif unit == "month":
+                hours_old = float(val * 24 * 30)
+            
+            job_posted_at = (datetime.now(timezone.utc) - timedelta(hours=hours_old)).isoformat()
         
         base_score = calculate_priority_score(
             "normal", hours_old, parsed["title"], parsed["job_location"], company_tier,
@@ -311,6 +329,7 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             "job_id": parsed["job_id"],
             "description": r.get("body", "")[:500],
             "hours_old": hours_old,
+            "job_posted_at": job_posted_at,
             "is_fresh": False,
             "source_method": "ddgs",
             "original_job_url": url,

@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
   freshness_score INTEGER,
   raw_data JSONB,
   status TEXT DEFAULT 'new',
+  job_posted_at TIMESTAMP,
   found_at TIMESTAMP DEFAULT NOW(),
   applied_at TIMESTAMP,
   follow_up_date DATE,

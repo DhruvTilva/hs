@@ -163,10 +163,13 @@ function UrgentCard({ opp, onApplied, onSkip }: {
       </p>
 
       {/* Meta row */}
-      <p style={{ margin: '0 0 0.3rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+      <div style={{ margin: '0 0 0.3rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
         {opp.location ? `📍 ${opp.location} · ` : ''}
-        ⏰ {timeAgo(opp.found_at)} · {sourceIcon(opp.source)} {opp.source}
-      </p>
+        {sourceIcon(opp.source)} {opp.source}
+        <div style={{ marginTop: '0.15rem' }}>
+          Posted: {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))} · Discovered: {timeAgo(opp.found_at)}
+        </div>
+      </div>
 
       {/* Score breakdown */}
       <div className={`score-breakdown${showBreakdown ? ' visible' : ''}`}>
@@ -458,7 +461,12 @@ export default function HomePage() {
                   <span style={{ background: 'var(--badge-watching-bg)', color: 'var(--badge-watching-text)', borderRadius: '9999px', padding: '0.1rem 0.45rem', fontSize: '0.68rem', fontWeight: 700, flexShrink: 0 }}>
                     {opp.priority_score}
                   </span>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>{timeAgo(opp.found_at)}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                      {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
+                    </span>
+                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{timeAgo(opp.found_at)}</span>
+                  </div>
                   {opp.apply_url && (
                     <a href={opp.apply_url} target="_blank" rel="noopener noreferrer" style={{
                       fontSize: '0.7rem', color: 'var(--accent)', flexShrink: 0,
@@ -509,7 +517,7 @@ export default function HomePage() {
                       </span>
                     </div>
                     <p style={{ margin: '0.2rem 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Signal: {signalReason} · {timeAgo(opp.found_at)}
+                      Signal: {signalReason} · {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
                     </p>
                     <p style={{ margin: '0.2rem 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       Suggested contact: CTO / HR Manager

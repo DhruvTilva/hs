@@ -494,7 +494,16 @@ export function OpportunitiesPage() {
                     key={item.id}
                     style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}
                   >
-                    <td style={TD_STYLE}>{timeAgo(item.found_at)}</td>
+                    <td style={TD_STYLE}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                          Posted: {(item.raw_data as any)?.job_posted_at ? timeAgo((item.raw_data as any).job_posted_at) : (item.source === 'naukri' ? 'Unknown' : timeAgo(item.found_at))}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          Discovered: {timeAgo(item.found_at)}
+                        </span>
+                      </div>
+                    </td>
                     <td style={{ ...TD_STYLE, fontWeight: 600, color: 'var(--text-primary)' }}>{item.company_name}</td>
                     <td style={TD_STYLE}>{item.role_title ?? 'Open role'}</td>
                     <td style={TD_STYLE}>{item.location ?? '—'}</td>
