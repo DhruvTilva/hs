@@ -5,6 +5,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 import sys
+import requests
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -184,6 +185,38 @@ def parse_naukri_url(url: str, default_title: str, default_location: str, ddg_ti
         "job_id": job_id,
     }
 
+def validate_naukri_url(url: str) -> bool:
+    """
+    Validates if the Naukri job URL is actually active.
+    Returns False if it's expired (redirects to search with expJD=true).
+    Returns True if it's active or if Akamai Bot Manager blocks the validation.
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+    try:
+        r = requests.get(url, headers=headers, allow_redirects=False, timeout=10)
+        # If redirected and it has expJD=true, it is definitely expired
+        if r.status_code in (301, 302):
+            location = r.headers.get("Location", "")
+            if "expJD=true" in location:
+                return False
+        
+        # If the page loads successfully, double check text for expiration message
+        elif r.status_code == 200:
+            text = r.text.lower()
+            if "job you are looking for is expired" in text or "no longer available" in text:
+                return False
+        
+        # We accept 403/406 because those are Akamai Datacenter IP blocks on GitHub Actions.
+        # We cannot safely validate them, so we assume they might be active to avoid false negatives.
+        return True
+    except Exception as e:
+        print(f"    [WARN] Validation request failed for {url}: {e}")
+        return True
+
 def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, company_tiers: dict[str, Any]) -> None:
     # Use ddgs to search Naukri site
     query = f'site:naukri.com/job-listings "{keyword}" {location}'
@@ -227,6 +260,10 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         c_words = c_name.lower().split()
         if all(w in KNOWN_CITIES for w in c_words) and len(c_words) > 0:
             stats["errors"].append(f"Skipping opportunity: company name contains only city names ({c_name}) for {url}")
+            continue
+
+        if not validate_naukri_url(url):
+            stats["errors"].append(f"Skipping opportunity: job is expired ({url})")
             continue
         
         # Scoring
