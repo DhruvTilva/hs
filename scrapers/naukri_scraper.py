@@ -250,11 +250,13 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             "hours_old": hours_old,
             "is_fresh": False,
             "source_method": "ddgs",
+            "original_job_url": url,
+            "source_url": url,
         }
 
         opp = Opportunity(
-            company_name=parsed["company_name"],
-            role_title=parsed["title"],
+            company_name=c_name,
+            role_title=r_title,
             location=parsed["job_location"],
             source="naukri",
             signal_type="normal",

@@ -16,6 +16,9 @@ export type OpportunityFilters = {
   date?: string;
   date_from?: string;
   date_to?: string;
+  location?: string;
+  role?: string;
+  company?: string;
 };
 
 const DIRECT_JOB_SOURCES: OpportunitySource[] = ['career_page', 'naukri', 'wellfound', 'indeed'];
@@ -37,9 +40,10 @@ function matchesDateFilter(foundAt: string, filters: OpportunityFilters) {
     if (found.getTime() < today.getTime()) return false;
   }
 
-  if (filters.date === '7d' && found.getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000) {
-    return false;
-  }
+  if (filters.date === '3h' && found.getTime() < Date.now() - 3 * 60 * 60 * 1000) return false;
+  if (filters.date === '30h' && found.getTime() < Date.now() - 30 * 60 * 60 * 1000) return false;
+  if (filters.date === '3d' && found.getTime() < Date.now() - 3 * 24 * 60 * 60 * 1000) return false;
+  if (filters.date === '7d' && found.getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000) return false;
 
   if (filters.date_from) {
     const start = parseDate(filters.date_from);
@@ -129,7 +133,11 @@ export function filterOpportunities(opportunities: Opportunity[], filters: Oppor
     if (filters.score === '40-69') scoreMatch = score >= 40 && score < 70;
     if (filters.score === '<40') scoreMatch = score < 40;
 
-    return sourceMatch && statusMatch && scoreMatch && matchesDateFilter(opportunity.found_at, filters);
+    const locMatch = !filters.location || (opportunity.location && opportunity.location.toLowerCase().includes(filters.location.toLowerCase()));
+    const roleMatch = !filters.role || (opportunity.role_title && opportunity.role_title.toLowerCase().includes(filters.role.toLowerCase()));
+    const compMatch = !filters.company || (opportunity.company_name && opportunity.company_name.toLowerCase().includes(filters.company.toLowerCase()));
+
+    return sourceMatch && statusMatch && scoreMatch && locMatch && roleMatch && compMatch && matchesDateFilter(opportunity.found_at, filters);
   });
 }
 

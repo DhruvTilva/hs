@@ -267,6 +267,13 @@ export function OpportunitiesPage() {
   const [date, setDate]       = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo]   = useState('');
+  
+  const [location, setLocation] = useState('');
+  const [role, setRole] = useState('');
+  const [company, setCompany] = useState('');
+
+  const [sortCol, setSortCol] = useState<'Date'|'Company'|'Role'|'Location'|'Source'|'Score'|'Status'>('Score');
+  const [sortDesc, setSortDesc] = useState(true);
 
   async function load() {
     setLoading(true);
@@ -289,10 +296,27 @@ export function OpportunitiesPage() {
     setTimeout(() => setFiltering(false), 200);
   }
 
-  const visible = useMemo(
-    () => filterOpportunities(rows, { source, score, status, date, date_from: dateFrom, date_to: dateTo }),
-    [rows, source, score, status, date, dateFrom, dateTo],
-  );
+  const visible = useMemo(() => {
+    let filtered = filterOpportunities(rows, { source, score, status, date, date_from: dateFrom, date_to: dateTo, location, role, company });
+    
+    filtered.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+      if (sortCol === 'Date') { valA = new Date(a.found_at).getTime(); valB = new Date(b.found_at).getTime(); }
+      else if (sortCol === 'Company') { valA = a.company_name.toLowerCase(); valB = b.company_name.toLowerCase(); }
+      else if (sortCol === 'Role') { valA = (a.role_title || '').toLowerCase(); valB = (b.role_title || '').toLowerCase(); }
+      else if (sortCol === 'Location') { valA = (a.location || '').toLowerCase(); valB = (b.location || '').toLowerCase(); }
+      else if (sortCol === 'Source') { valA = a.source; valB = b.source; }
+      else if (sortCol === 'Score') { valA = a.priority_score || 0; valB = b.priority_score || 0; }
+      else if (sortCol === 'Status') { valA = a.status; valB = b.status; }
+
+      if (valA < valB) return sortDesc ? 1 : -1;
+      if (valA > valB) return sortDesc ? -1 : 1;
+      return 0;
+    });
+
+    return filtered;
+  }, [rows, source, score, status, date, dateFrom, dateTo, location, role, company, sortCol, sortDesc]);
 
   async function markApplied(id: string) {
     await patchJson('/api/opportunities', { id, status: 'applied', applied_at: new Date().toISOString() });
@@ -340,12 +364,43 @@ export function OpportunitiesPage() {
           </Select>
           <Select value={date} onChange={(e) => handleFilterChange(setDate, e.target.value)}>
             <option value="all">All dates</option>
+            <option value="3h">Last 3 Hours</option>
             <option value="today">Today</option>
-            <option value="7d">Last 7 days</option>
+            <option value="30h">Last 30 Hours</option>
+            <option value="3d">Last 3 Days</option>
+            <option value="7d">Last 7 Days</option>
           </Select>
         </div>
 
-        {/* Row 2: date range inputs */}
+        {/* Row 2: Text Filters */}
+        <div style={{ display: 'grid', gap: '0.5rem', gridTemplateColumns: 'repeat(3, 1fr)', marginTop: '0.5rem' }}>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => handleFilterChange(setLocation, e.target.value)}
+            className="hs-input"
+            style={{ height: '2.375rem' }}
+            placeholder="Location (e.g. Ahmedabad)"
+          />
+          <input
+            type="text"
+            value={role}
+            onChange={(e) => handleFilterChange(setRole, e.target.value)}
+            className="hs-input"
+            style={{ height: '2.375rem' }}
+            placeholder="Role (e.g. AI Engineer)"
+          />
+          <input
+            type="text"
+            value={company}
+            onChange={(e) => handleFilterChange(setCompany, e.target.value)}
+            className="hs-input"
+            style={{ height: '2.375rem' }}
+            placeholder="Company name"
+          />
+        </div>
+
+        {/* Row 3: date range inputs */}
         <div style={{ display: 'grid', gap: '0.5rem', gridTemplateColumns: '1fr 1fr', marginTop: '0.5rem' }}>
           <input
             type="date"
@@ -363,7 +418,7 @@ export function OpportunitiesPage() {
           />
         </div>
 
-        {/* Row 3: actions */}
+        {/* Row 4: actions */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
           <button
             onClick={() => void handleExport()}
@@ -384,7 +439,11 @@ export function OpportunitiesPage() {
             {exporting && <Spinner />}
             {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
-          <Button onClick={() => { setSource('all'); setScore('all'); setStatus('all'); setDate('all'); setDateFrom(''); setDateTo(''); }}>
+          <Button onClick={() => { 
+            setSource('all'); setScore('all'); setStatus('all'); setDate('all'); 
+            setDateFrom(''); setDateTo(''); setLocation(''); setRole(''); setCompany('');
+            setSortCol('Score'); setSortDesc(true);
+          }}>
             Reset Filters
           </Button>
         </div>
@@ -414,9 +473,19 @@ export function OpportunitiesPage() {
             <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['Date','Company','Role','Location','Source','Score','Status','Action'].map((h) => (
-                    <th key={h} style={TH_STYLE}>{h}</th>
+                  {(['Date','Company','Role','Location','Source','Score','Status'] as const).map((h) => (
+                    <th 
+                      key={h} 
+                      style={{ ...TH_STYLE, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => {
+                        if (sortCol === h) setSortDesc(!sortDesc);
+                        else { setSortCol(h); setSortDesc(true); }
+                      }}
+                    >
+                      {h} {sortCol === h ? (sortDesc ? '↓' : '↑') : ''}
+                    </th>
                   ))}
+                  <th style={TH_STYLE}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,8 +503,47 @@ export function OpportunitiesPage() {
                     <td style={TD_STYLE}>{item.status}</td>
                     <td style={TD_STYLE}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {item.apply_url && <GhostLink href={item.apply_url}>Apply</GhostLink>}
-                        <MarkAppliedButton id={item.id} onMark={() => markApplied(item.id)} />
+                        {(item.apply_url || (item.raw_data as any)?.original_job_url) ? (
+                          <a 
+                            href={item.apply_url || (item.raw_data as any)?.original_job_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="hs-btn-view"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                              borderRadius: '9999px',
+                              border: '1px solid var(--border)',
+                              backgroundColor: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              padding: '0.4rem 0.85rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              whiteSpace: 'nowrap',
+                              height: '2.25rem',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.85rem' }}>🔗</span> <span className="hs-btn-view-text">View Job</span>
+                          </a>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: '9999px',
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'transparent',
+                            color: 'var(--text-muted)',
+                            padding: '0.4rem 0.85rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            height: '2.25rem',
+                            cursor: 'not-allowed'
+                          }}>
+                            URL Missing
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>

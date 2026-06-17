@@ -26,7 +26,7 @@ async function readRows(): Promise<{ data: Opportunity[]; fallback: boolean }> {
   const { data, error } = await client
     .from('opportunities')
     .select('*')
-    .order('found_at', { ascending: false });
+    .order('priority_score', { ascending: false, nullsFirst: false });
 
   if (error || !data) return { data: sampleOpportunities, fallback: true };
   return { data: data as Opportunity[], fallback: false };
@@ -73,6 +73,9 @@ export async function GET(request: NextRequest) {
     date: filter === 'today' ? 'today' : params.get('date') || 'all',
     date_from: params.get('date_from') || '',
     date_to: params.get('date_to') || '',
+    location: params.get('location') || '',
+    role: params.get('role') || '',
+    company: params.get('company') || '',
   });
 
   if (params.get('format') === 'csv') {
