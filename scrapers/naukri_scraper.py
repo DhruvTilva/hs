@@ -114,30 +114,74 @@ def insert_with_dedup(client: Any, opp: Opportunity, *, stats: dict[str, Any]) -
 # PART 3 — DDG SCRAPER CORE
 # ─────────────────────────────────────────────────────────────
 
-def parse_naukri_url(url: str, default_title: str, default_location: str) -> dict[str, Any]:
+KNOWN_CITIES = {
+    "ahmedabad", "gandhinagar", "bengaluru", "bangalore", "noida", 
+    "gurugram", "gurgaon", "delhi", "new delhi", "pune", "mumbai", 
+    "hyderabad", "chennai", "kolkata", "hosur", "india", "remote",
+    "vadodara", "surat", "rajkot", "gujarat", "kochi", "cochin",
+    "trivandrum", "thiruvananthapuram", "indore", "bhopal",
+    "chandigarh", "mohali", "jaipur", "lucknow", "kanpur",
+    "nagpur", "coimbatore", "mysore", "bhubaneswar", "patna",
+    "gift city"
+}
+
+def parse_naukri_url(url: str, default_title: str, default_location: str, ddg_title: str) -> dict[str, Any]:
     """Parse URL like job-listings-data-scientist-adani-group-ahmedabad-3-to-5-years-12345678"""
     m = re.search(r'job-listings-(.*?)-(\d+-to-\d+-years)-(\d+)$', url)
-    if m:
-        prefix = m.group(1).replace("-", " ")
-        experience = m.group(2).replace("-", " ")
-        job_id = m.group(3)
-        # very rough split
-        words = prefix.split()
-        title = " ".join(words[:3]).title() if len(words) > 3 else default_title
-        company = " ".join(words[3:]).title() if len(words) > 3 else "Unknown"
+    if not m:
         return {
-            "title": title,
-            "company_name": company,
+            "title": default_title.title(),
+            "company_name": "Unknown",
             "job_location": default_location,
-            "experience": experience,
-            "job_id": job_id,
+            "experience": "Not specified",
+            "job_id": "unknown-" + str(random.randint(1000,9999)),
         }
+
+    prefix = m.group(1).replace("-", " ")
+    experience = m.group(2).replace("-", " ")
+    job_id = m.group(3)
+    
+    words = prefix.split()
+    
+    # Extract trailing known cities as location
+    location_words = []
+    while words:
+        if len(words) >= 2 and f"{words[-2]} {words[-1]}".lower() in KNOWN_CITIES:
+            location_words.insert(0, words.pop())
+            location_words.insert(0, words.pop())
+        elif words[-1].lower() in KNOWN_CITIES:
+            location_words.insert(0, words.pop())
+        else:
+            break
+            
+    job_location = " ".join(location_words).title() if location_words else default_location
+
+    # Extract title
+    title = default_title.title()
+    if ddg_title and "Link to naukri" not in ddg_title and "naukri.com/job-listings" not in ddg_title:
+        title = ddg_title.split(" - ")[0].split(" | ")[0].strip()
+        
+    # Extract company name by removing the default title words from the start
+    keyword_words = set(default_title.lower().split())
+    idx = 0
+    while idx < len(words) and words[idx].lower() in keyword_words:
+        idx += 1
+        
+    if idx > 0 and idx < len(words):
+        company = " ".join(words[idx:]).title()
+    else:
+        # Fallback
+        company = " ".join(words[3:]).title() if len(words) > 3 else "Unknown"
+
+    if not company or company.lower() in ["unknown", "n/a", "null"]:
+        company = "Unknown"
+
     return {
-        "title": default_title.title(),
-        "company_name": "Unknown",
-        "job_location": default_location,
-        "experience": "Not specified",
-        "job_id": "unknown-" + str(random.randint(1000,9999)),
+        "title": title,
+        "company_name": company,
+        "job_location": job_location,
+        "experience": experience,
+        "job_id": job_id,
     }
 
 def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, company_tiers: dict[str, Any]) -> None:
@@ -154,7 +198,7 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         return
 
     if not results:
-        print(f"  [OK] {keyword!r} / {location!r} → 0 found")
+        print(f"  [OK] {keyword!r} / {location!r} -> 0 found")
         return
 
     stats["total_jobs_found"] += len(results)
@@ -165,10 +209,28 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         if "job-listings" not in url:
             continue
             
-        parsed = parse_naukri_url(url, keyword, location)
+        ddg_title = r.get("title", "")
+        parsed = parse_naukri_url(url, keyword, location, ddg_title)
+        
+        c_name = parsed["company_name"].strip()
+        r_title = parsed["title"].strip()
+        
+        # Validation rules
+        if not c_name or c_name.lower() in ["unknown", "n/a", "null"]:
+            stats["errors"].append(f"Skipping opportunity: company name not found for {url}")
+            continue
+            
+        if not r_title:
+            stats["errors"].append(f"Skipping opportunity: role is empty for {url}")
+            continue
+            
+        c_words = c_name.lower().split()
+        if all(w in KNOWN_CITIES for w in c_words) and len(c_words) > 0:
+            stats["errors"].append(f"Skipping opportunity: company name contains only city names ({c_name}) for {url}")
+            continue
         
         # Scoring
-        company_tier = company_tiers.get(clean_company(parsed["company_name"]))
+        company_tier = company_tiers.get(clean_company(c_name))
         # DDG results are not necessarily "fresh", so we assume 24 hours
         hours_old = 24.0
         
@@ -205,7 +267,7 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         if insert_with_dedup(client, opp, stats=stats):
             inserted_this_query += 1
 
-    print(f"  [OK] {keyword!r} / {location!r} → {len(results)} found, {inserted_this_query} inserted")
+    print(f"  [OK] {keyword!r} / {location!r} -> {len(results)} found, {inserted_this_query} inserted")
 
 # ─────────────────────────────────────────────────────────────
 # PART 4 — MAIN STRATEGY

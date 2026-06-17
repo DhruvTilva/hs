@@ -56,13 +56,17 @@ def calculate_priority_score(
         score += 10
 
     location_text = (location or "").lower()
-    if "gift city" in location_text or "gandhinagar" in location_text:
-        score += 12
-    elif "ahmedabad" in location_text:
+    # Priority 1: Ahmedabad, Gandhinagar, GIFT City
+    if any(loc in location_text for loc in ["ahmedabad", "gandhinagar", "gift"]):
+        score += 30
+    # Priority 2: Other Gujarat cities
+    elif any(loc in location_text for loc in ["gujarat", "surat", "vadodara", "rajkot", "bhavnagar", "jamnagar", "junagadh"]):
+        score += 20
+    # Priority 3: Remote
+    elif any(loc in location_text for loc in ["remote", "work from home", "wfh"]):
         score += 10
-    elif "gujarat" in location_text:
-        score += 7
-    elif "remote" in location_text:
+    # Priority 4: Major tech cities
+    elif any(loc in location_text for loc in ["bangalore", "bengaluru", "pune", "hyderabad", "mumbai", "delhi", "ncr", "noida", "gurgaon", "gurugram", "chennai", "kolkata"]):
         score += 5
 
     score += TIER_SCORES.get(company_tier, 4)
