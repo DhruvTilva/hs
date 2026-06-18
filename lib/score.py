@@ -29,11 +29,15 @@ def calculate_priority_score(
     role_title: str | None,
     location: str | None,
     company_tier: int | None,
+    source: str | None = None,
+    has_recruiter_profile: bool = False,
 ) -> int:
     score = 0
 
     if hours_old <= 6:
         score += 35
+        if (source or "").lower() == "linkedin":
+            score += 10
     elif hours_old <= 24:
         score += 25
     elif hours_old <= 72:
@@ -55,6 +59,9 @@ def calculate_priority_score(
     elif "data" in role_text or "engineer" in role_text:
         score += 10
 
+    if any(kw in role_text for kw in ["llm", "gen ai", "genai", "generative ai", "gpt", "foundation model"]):
+        score += 5
+
     location_text = (location or "").lower()
     
     # Priority 1 (Highest): GIFT City, Ahmedabad, Gandhinagar = +35
@@ -71,5 +78,11 @@ def calculate_priority_score(
         score += 0
 
     score += TIER_SCORES.get(company_tier, 4)
+
+    if (source or "").lower() == "linkedin":
+        score += 5
+        
+    if has_recruiter_profile:
+        score += 3
 
     return min(score, 100)

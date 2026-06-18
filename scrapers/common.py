@@ -32,6 +32,16 @@ class Opportunity:
     raw_data: dict[str, Any] | None = None
 
 
+@dataclass
+class Recruiter:
+    name: str
+    linkedin_url: str
+    company: str | None
+    location: str | None
+    notes: str | None
+
+
+
 def get_supabase_client() -> Client | None:
     url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
@@ -168,6 +178,26 @@ def insert_opportunity(
     payload = asdict(opportunity)
     client.table("opportunities").insert(payload).execute()
     return True
+
+
+def insert_recruiter(client: Client | None, recruiter: Recruiter) -> bool:
+    if client is None:
+        logger.info("Dry mode recruiter: %s", recruiter)
+        return True
+
+    try:
+        query = client.table("recruiters").select("id").eq("linkedin_url", recruiter.linkedin_url).limit(1).execute()
+        if query.data:
+            logger.info("Skipping duplicate recruiter: %s", recruiter.name)
+            return False
+
+        payload = asdict(recruiter)
+        client.table("recruiters").insert(payload).execute()
+        return True
+    except Exception as exc:
+        logger.error("Error inserting recruiter %s: %s", recruiter.name, exc)
+        return False
+
 
 
 def log_scraper_run(client: Client | None, source: str, status: str, new_found: int = 0, errors: str | None = None) -> None:
