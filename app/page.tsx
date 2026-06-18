@@ -338,6 +338,7 @@ export default function HomePage() {
               { href: '/proactive',    label: 'Proactive'     },
               { href: '/tracker',      label: 'Tracker'       },
               { href: '/interview',    label: '🧠 Interview'          },
+              { href: '/network',     label: '🔗 Network'            },
               { href: '/discover',    label: '🔭 Discover'           },
               { href: '/guide',       label: '📖 Guide'              },
             ].map((l) => (

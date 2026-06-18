@@ -39,6 +39,8 @@ class Recruiter:
     company: str | None
     location: str | None
     notes: str | None
+    category: str | None = None
+    headline: str | None = None
 
 
 

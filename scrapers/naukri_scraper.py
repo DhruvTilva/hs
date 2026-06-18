@@ -25,9 +25,9 @@ from scrapers.common import (
 )
 
 try:
-    from ddgs import DDGS
+    from duckduckgo_search import DDGS
 except ImportError:
-    print("Please install ddgs: pip install ddgs")
+    print("Please install duckduckgo-search: pip install duckduckgo-search")
     sys.exit(1)
 
 # ─────────────────────────────────────────────────────────────

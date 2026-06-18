@@ -153,11 +153,12 @@ Alternatively, keep RLS on and add a policy `FOR ALL USING (true)` on each table
 
 ## Step 4 — SerpAPI Setup
 
-1. Sign up at [serpapi.com](https://serpapi.com).
-2. Go to **Dashboard → API Key**.
-3. Copy your key. This is your `SERPAPI_KEY`.
+You will need **two separate free SerpAPI accounts** to avoid hitting the 100 searches/month limits on the free tier.
 
-The free plan gives 100 searches per month. The Google Search scraper runs 5 queries per scrape run × 3 runs per day = 45 searches/day on the automation schedule, so you will need a paid plan for continuous daily use. During testing, run `google_search_scraper.py` manually only when needed.
+1. Sign up for Account 1 at [serpapi.com](https://serpapi.com) and get the API Key -> `SERPAPI_KEY` (Used for company discovery & interview prep)
+2. Sign up for Account 2 and get the API Key -> `SERPAPI_KEY_2` (Used exclusively for the Network Growth Recruiter Discovery)
+
+With this dual-account setup, both accounts will stay under their 100 queries/month free limit even running daily.
 
 ---
 
@@ -209,6 +210,7 @@ GMAIL_CREDENTIALS=base64encodedstring...
 
 # SerpAPI
 SERPAPI_KEY=abc123...
+SERPAPI_KEY_2=def456...
 
 # Your deployed dashboard URL (used in daily summary message)
 DASHBOARD_URL=https://your-app.vercel.app
@@ -224,6 +226,7 @@ export SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 export TELEGRAM_BOT_TOKEN=7123456789:AAFxxxxxxxxxxxxxxxxxxxxxxx
 export TELEGRAM_CHAT_ID=123456789
 export SERPAPI_KEY=abc123...
+export SERPAPI_KEY_2=def456...
 export DASHBOARD_URL=https://your-app.vercel.app
 ```
 
@@ -433,6 +436,10 @@ Two sections:
 
 2. **Tier 5–6 companies with no recent opportunity** — companies in tier 5 or 6 that have no direct job signal in the last 14 days. Useful for cold-emailing startups before they post publicly.
 
+### `/network` — Network Growth
+
+Displays fresh, daily batches of highly targeted AI/ML recruiters, HR managers, and startup founders from Ahmedabad/Gujarat. Shows profile names, company, headline, and location. Features a one-click **Connect on LinkedIn** button and a pre-written outreach message generator to quickly build a high-quality professional network.
+
 ### `/tracker` — Application Tracker
 
 Full pipeline view of all opportunities. Inline status dropdown (New → Applied → Followed Up → Interview → Offer / Rejected). Inline follow-up date picker. Inline notes textarea. All changes are saved immediately via PATCH.
@@ -474,11 +481,11 @@ Queries the Naukri job search API for 10 keyword × location combinations (AI en
 
 Decodes the `GMAIL_CREDENTIALS` Base64 environment variable. If missing or invalid, logs `skipped` and exits cleanly. When credentials are valid, parses LinkedIn job alert emails and Google Alert emails for opportunity signals.
 
-### `scrapers/google_search_scraper.py`
+### `scrapers/google_search_scraper.py` (Network Growth Engine)
 
-Uses SerpAPI to run 5 pre-defined Google queries targeting LinkedIn posts and hiring signals in Ahmedabad and Gujarat. Filters results by a set of hiring keywords. Infers company name and location from the result title and snippet.
+Uses SerpAPI (3 queries) and DuckDuckGo (5 queries) to discover highly targeted AI/ML domain recruiters, HR managers, talent acquisition leads, and startup founders in Ahmedabad and Gujarat. Profiles are deduplicated permanently in `recruiters` and displayed freshly in `recruiter_leads`.
 
-Requires `SERPAPI_KEY`. If missing, logs `skipped` and exits cleanly.
+Requires `SERPAPI_KEY_2`. If missing, skips the SerpAPI portion but still runs the free DuckDuckGo portion.
 
 ### `scrapers/indeed_scraper.py`
 
@@ -705,6 +712,18 @@ CREATE TABLE discovered_companies (
 
 CREATE UNIQUE INDEX discovered_companies_name_idx
 ON discovered_companies(LOWER(name));
+
+CREATE TABLE recruiter_leads (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    linkedin_url TEXT NOT NULL,
+    company TEXT,
+    headline TEXT,
+    location TEXT,
+    category TEXT,
+    discovered_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 ```
 
 ### How to use Company Discovery

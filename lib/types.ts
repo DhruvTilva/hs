@@ -191,3 +191,16 @@ export interface DiscoveryStats {
   reached_out: number
 }
 
+// ── Network Growth (Recruiter Discovery) ───────────────────────────────────────
+
+export interface RecruiterLead {
+  id: string
+  name: string
+  linkedin_url: string
+  company: string | null
+  headline: string | null
+  location: string | null
+  category: string | null
+  discovered_at: string
+}
+
