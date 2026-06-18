@@ -61,21 +61,29 @@ export function OpportunityCard({
       </div>
 
       <div style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-        {[sourceLabel(opportunity.source), (opportunity.raw_data as any)?.posted_date_str ? (opportunity.raw_data as any).posted_date_str : (opportunity.source === 'naukri' ? 'Unknown' : timeAgo(opportunity.found_at)), opportunity.location ?? 'Unknown location'].map((label) => (
-          <span
-            key={label}
-            style={{
-              borderRadius: '9999px',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--text-secondary)',
-              padding: '0.15rem 0.55rem',
-              fontSize: '0.7rem',
-              fontWeight: 500,
-            }}
-          >
-            {label}
+        {/* Source badge */}
+        <span style={{ borderRadius: '9999px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', fontSize: '0.7rem', fontWeight: 500 }}>
+          {sourceLabel(opportunity.source)}
+        </span>
+
+        {/* Posted date — only shown when available */}
+        {(opportunity.raw_data as any)?.posted_date_str && (
+          <span style={{ borderRadius: '9999px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', fontSize: '0.7rem', fontWeight: 500 }}>
+            Posted: {(opportunity.raw_data as any).posted_date_str}
           </span>
-        ))}
+        )}
+
+        {/* Discovered — always shown */}
+        <span style={{ borderRadius: '9999px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', fontSize: '0.7rem', fontWeight: 500 }}>
+          Discovered: {timeAgo(opportunity.found_at)}
+        </span>
+
+        {/* Location */}
+        {opportunity.location && (
+          <span style={{ borderRadius: '9999px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '0.15rem 0.55rem', fontSize: '0.7rem', fontWeight: 500 }}>
+            {opportunity.location}
+          </span>
+        )}
       </div>
 
       <div style={{ marginTop: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>

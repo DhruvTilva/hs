@@ -297,29 +297,73 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
         
-        # Extract posted date from DuckDuckGo snippet if available
-        hours_old = 24.0
-        match = re.search(r'(\d+\+?\s*(?:day|hour|week|month)s?\s*ago|today|yesterday|just now)', desc_lower, re.IGNORECASE)
+        # ── Extract posted date from DuckDuckGo snippet / title ─────────────
+        # Default to 72h (3 days) so jobs with no extractable date get a
+        # conservative freshness score rather than an inflated one.
+        hours_old = 72.0
         posted_date_str = None
-        if match:
-            posted_date_str = match.group(1).title() if "today" in match.group(1).lower() or "yesterday" in match.group(1).lower() else match.group(1)
-            # Try to calculate hours_old for scoring purposes
-            if "today" in posted_date_str.lower() or "just now" in posted_date_str.lower():
-                hours_old = 2.0
-            elif "yesterday" in posted_date_str.lower():
-                hours_old = 24.0
-            else:
-                val_match = re.search(r'(\d+)', posted_date_str)
-                if val_match:
-                    val = int(val_match.group(1))
-                    if "hour" in posted_date_str:
-                        hours_old = float(val)
-                    elif "day" in posted_date_str:
-                        hours_old = float(val * 24)
-                    elif "week" in posted_date_str:
-                        hours_old = float(val * 24 * 7)
-                    elif "month" in posted_date_str:
-                        hours_old = float(val * 24 * 30)
+
+        # Search both the snippet body AND the DDG result title for date text.
+        # Naukri can surface dates in either field.
+        _date_search_text = desc_lower + " " + ddg_title.lower()
+
+        # Pattern 1: canonical relative dates  — "3 days ago", "30+ days ago", "2 hours ago"
+        _PATTERNS = [
+            r'(\d+\+?\s*(?:day|hour|week|month)s?\s*ago)',       # "3 days ago", "30+ days ago"
+            r'(today|yesterday|just\s*now|just\s*posted)',          # "today", "just now"
+            r'(few\s*(?:hour|day)s?\s*ago)',                        # "few hours ago"
+            r'(a\s*(?:day|week|month)\s*ago)',                      # "a day ago"
+            r'(be\s+an\s+early\s+applicant)',                       # Naukri "Be an Early Applicant" = very fresh
+            r'(early\s+applicant)',                                  # shorter variant
+        ]
+        for _pat in _PATTERNS:
+            _m = re.search(_pat, _date_search_text, re.IGNORECASE)
+            if _m:
+                raw_match = _m.group(1).strip()
+                # Normalise to a display-friendly string
+                _rl = raw_match.lower()
+                if re.search(r'early.applicant', _rl) or 'just' in _rl:
+                    posted_date_str = 'Just posted'
+                    hours_old = 1.0
+                elif 'today' in _rl:
+                    posted_date_str = 'Today'
+                    hours_old = 4.0
+                elif 'yesterday' in _rl:
+                    posted_date_str = 'Yesterday'
+                    hours_old = 28.0
+                elif re.search(r'few.hours', _rl):
+                    posted_date_str = 'Few hours ago'
+                    hours_old = 6.0
+                elif re.search(r'few.days', _rl):
+                    posted_date_str = 'Few days ago'
+                    hours_old = 72.0
+                elif re.search(r'a\s+day', _rl):
+                    posted_date_str = '1 day ago'
+                    hours_old = 24.0
+                elif re.search(r'a\s+week', _rl):
+                    posted_date_str = '1 week ago'
+                    hours_old = 168.0
+                elif re.search(r'a\s+month', _rl):
+                    posted_date_str = '1 month ago'
+                    hours_old = 720.0
+                else:
+                    # Numeric variant: extract the leading number
+                    _val_m = re.search(r'(\d+)', raw_match)
+                    if _val_m:
+                        val = int(_val_m.group(1))
+                        if 'hour' in _rl:
+                            hours_old = float(val)
+                            posted_date_str = f'{val} hour{"s" if val != 1 else ""} ago'
+                        elif 'day' in _rl:
+                            hours_old = float(val * 24)
+                            posted_date_str = f'{val} day{"s" if val != 1 else ""} ago'
+                        elif 'week' in _rl:
+                            hours_old = float(val * 24 * 7)
+                            posted_date_str = f'{val} week{"s" if val != 1 else ""} ago'
+                        elif 'month' in _rl:
+                            hours_old = float(val * 24 * 30)
+                            posted_date_str = f'{val} month{"s" if val != 1 else ""} ago'
+                break  # stop at first pattern that matched
         
         base_score = calculate_priority_score(
             "normal", hours_old, parsed["title"], parsed["job_location"], company_tier,
