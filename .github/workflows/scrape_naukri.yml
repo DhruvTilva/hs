@@ -16,7 +16,6 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run Naukri Scraper
         env:
-          TEST_MODE: "true"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

@@ -1,4 +1,4 @@
-import re
+﻿import re
 import time
 import random
 from dataclasses import asdict
@@ -309,17 +309,13 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             
         print(f"  [OK] Valid AI/ML Role found: '{r_title}' at {c_name}")
 
-        # Location guard: Ensure DDG found it for our target
+        # ΓöÇΓöÇ Location guard: reject anything outside primary Gujarat targets ΓöÇΓöÇ
         parsed_loc = parsed["job_location"]
         if not _is_primary_location(parsed_loc):
-            # Fallback: check if the target location was in the DDG snippet
-            if location.lower() in r.get("body", "").lower() or location.lower() in ddg_title.lower():
-                parsed["job_location"] = location.title() # Override the bad parse
-            else:
-                stats["errors"].append(
-                    f"[LOCATION REJECT] '{r_title}' at {c_name} — location '{parsed_loc}' outside primary targets"
-                )
-                continue
+            stats["errors"].append(
+                f"[LOCATION REJECT] '{r_title}' at {c_name} ΓÇö location '{parsed_loc}' outside primary targets"
+            )
+            continue
         
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
@@ -470,7 +466,7 @@ def main() -> int:
         kw_limit2, loc_limit2 = 15, None
         kw_limit3 = None
 
-    print("\n=== PASS 1: Primary keywords x Gujarat locations ===")
+    print("\n=== PASS 1: Primary keywords ├ù Gujarat locations ===")
     for keyword in PRIMARY_KEYWORDS[:kw_limit1]:
         for location in LOCATIONS_PRIMARY[:loc_limit1]:
             run_query(keyword, location, stats, client, company_tiers)
@@ -485,7 +481,7 @@ def main() -> int:
     #         run_query(keyword, location, stats, client, company_tiers)
     #         time.sleep(random.uniform(2.0, 4.0))
 
-    print("\n=== PASS 3: Remaining keywords x Ahmedabad ===")
+    print("\n=== PASS 3: Remaining keywords ├ù Ahmedabad ===")
     for keyword in PRIMARY_KEYWORDS[20:20+kw_limit3] if kw_limit3 else PRIMARY_KEYWORDS[20:]:
         run_query(keyword, "Ahmedabad", stats, client, company_tiers)
         time.sleep(random.uniform(1.5, 3.5))
