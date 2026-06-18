@@ -30,6 +30,7 @@ from scrapers.common import (
     send_telegram_message,
     send_scraper_completion_notification,
 )
+from lib.nexus import extract_job_details
 
 # ─────────────────────────────────────────────────────────────
 # PART 1 — KEYWORDS & LOCATIONS
@@ -727,15 +728,30 @@ def process_job(
     """Filter, score, and insert a single extracted job dict."""
     title = job.get("title", "").strip()
     company = job.get("company", "").strip()
+    snippet = job.get("snippet", "")
 
     if not title or len(title) < 3 or not company:
         return
-    if is_noise_title(title):
-        stats["total_skipped_noise"] += 1
-        return
-    if not ai_signal_check(title, job.get("snippet", "")):
-        stats["total_skipped_no_ai_signal"] += 1
-        return
+        
+    # ── NEXUS AI EXTRACTION & VALIDATION ──
+    nexus_data = extract_job_details(snippet=snippet, fallback_title=title, fallback_company=company)
+    
+    if nexus_data:
+        # Trust Nexus completely
+        if not nexus_data.get("is_ai_role", False):
+            stats["total_skipped_no_ai_signal"] += 1
+            return
+            
+        company = nexus_data.get("company_name", company)
+        title = nexus_data.get("role_title", title)
+    else:
+        # ── FALLBACK TO OLD HEURISTICS ──
+        if is_noise_title(title):
+            stats["total_skipped_noise"] += 1
+            return
+        if not ai_signal_check(title, snippet):
+            stats["total_skipped_no_ai_signal"] += 1
+            return
 
     location = job.get("location") or search_location
     if not location_relevant_check(location):

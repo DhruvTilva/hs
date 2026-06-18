@@ -34,9 +34,9 @@ Scrapes Naukri, Indeed, Wellfound, career pages, Gmail alerts, and Google Search
 ## Architecture Overview
 
 ```
-GitHub Actions (cron 3×/day)
-        │
-        ▼
+GitHub Actions (cron 3×/day)               NexusAI Smart Routing Gateway
+        │                                          │ (Data Extraction & Outreach)
+        ▼                                          ▼
 Python Scrapers ──► Supabase PostgreSQL ◄── Next.js API Routes
         │                                          │
         ▼                                          ▼
@@ -44,8 +44,9 @@ Telegram Bot                              Next.js Dashboard
 (daily summary + urgent alerts)         (browser / phone)
 ```
 
-- **Scrapers** run in Python, write rows to Supabase, and send Telegram alerts for urgent finds.
-- **Dashboard** is a Next.js 14 App Router app that reads from Supabase via API routes and falls back to sample data when credentials are not set.
+- **Scrapers** run in Python, intelligently filtering noise via NexusAI, write to Supabase, and send Telegram alerts.
+- **NexusAI Gateway** acts as a free, infinite-scale LLM middleware for perfect job parsing, deduplication, and drafting automatic outreach messages.
+- **Dashboard** is a Next.js 14 App Router app that reads from Supabase and features a resilient Interview Intelligence page powered by NexusAI (with Gemini failover).
 - **GitHub Actions** schedules all scrapers automatically. No server required.
 
 ---
@@ -212,6 +213,9 @@ GMAIL_CREDENTIALS=base64encodedstring...
 SERPAPI_KEY=abc123...
 SERPAPI_KEY_2=def456...
 
+# NexusAI Gateway (For zero-cost intelligent parsing & outreach)
+NEXUS_API_KEY=dt-ask
+
 # Your deployed dashboard URL (used in daily summary message)
 DASHBOARD_URL=https://your-app.vercel.app
 ```
@@ -227,6 +231,7 @@ export TELEGRAM_BOT_TOKEN=7123456789:AAFxxxxxxxxxxxxxxxxxxxxxxx
 export TELEGRAM_CHAT_ID=123456789
 export SERPAPI_KEY=abc123...
 export SERPAPI_KEY_2=def456...
+export NEXUS_API_KEY=dt-ask
 export DASHBOARD_URL=https://your-app.vercel.app
 ```
 
@@ -272,13 +277,34 @@ npm start
 
 ---
 
-## Step 9 — Run Scrapers Manually
+## Step 9 — Run Scrapers Manually (Testing NexusAI)
 
-Run any scraper individually from the project root:
+You can run any scraper directly from the terminal to populate your local/remote Supabase. 
 
+### Testing the NexusAI Extraction (Phase 1)
+Run a core scraper like Naukri:
+```bash
+python scrapers/naukri_scraper.py
+```
+> **Note on Render Cold Starts:** The very first time you run this, it may pause for up to 40 seconds to wake up your NexusAI Render instance. This is perfectly normal! Once awake, you will see logs like `[OK] NexusAI Approved:` as it intelligently filters noise. If your Render app is fully down, the scraper will safely fall back to its old regex rules without crashing.
+
+### Testing the Autonomous Outreach Agent (Phase 3)
+Run the auto-outreach agent to generate hyper-personalized LinkedIn drafts for high-priority jobs:
+```bash
+python scrapers/auto_outreach_agent.py
+```
+This script scans your database for new jobs (Score > 70) and saves a ready-to-use message in the `raw_data` column.
+
+### Testing the Dashboard AI (Phase 4)
+Run the UI locally to test the fail-safe Interview Intelligence feature:
+```bash
+npm run dev
+```
+Navigate to `localhost:3000/interview`. It will now use your free NexusAI endpoint. If the endpoint times out (8 seconds), it seamlessly falls back to the direct Gemini API.
+
+### Running standard scrapers
 ```bash
 python scrapers/career_page_watcher.py
-python scrapers/naukri_scraper.py
 python scrapers/gmail_parser.py
 python scrapers/google_search_scraper.py
 python scrapers/indeed_scraper.py

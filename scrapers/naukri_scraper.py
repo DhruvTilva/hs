@@ -23,6 +23,7 @@ from scrapers.common import (
     send_telegram_message,
     send_scraper_completion_notification,
 )
+from lib.nexus import extract_job_details
 
 try:
     from duckduckgo_search import DDGS
@@ -259,40 +260,58 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         c_name = parsed["company_name"].strip()
         r_title = parsed["title"].strip()
         
-        # Validation rules
-        if not c_name or c_name.lower() in ["unknown", "n/a", "null"]:
-            stats["errors"].append(f"Skipping opportunity: company name not found for {url}")
-            continue
-            
-        if not r_title:
-            stats["errors"].append(f"Skipping opportunity: role is empty for {url}")
-            continue
-            
-        c_words = c_name.lower().split()
-        if all(w in KNOWN_CITIES for w in c_words) and len(c_words) > 0:
-            stats["errors"].append(f"Skipping opportunity: company name contains only city names ({c_name}) for {url}")
-            continue
-
-        # Strict AI/ML Rejection Rules
-        r_title_lower = r_title.lower()
-        if any(rej in r_title_lower for rej in HARD_REJECT_ROLES):
-            stats["errors"].append(f"[REJECT] Role: '{r_title}' | Hit hard-reject list for {url}")
-            continue
-            
-        desc_lower = r.get("body", "").lower()
+        # ── NEXUS AI EXTRACTION & VALIDATION ──
+        # Try to use our Smart AI to extract perfect data.
+        snippet_text = r.get("body", "")
+        nexus_data = extract_job_details(snippet=snippet_text, fallback_title=r_title, fallback_company=c_name)
         
-        has_primary_kw = any(kw.lower() in r_title_lower for kw in PRIMARY_KEYWORDS)
-        has_strong_desc = any(kw.lower() in desc_lower for kw in ["machine learning", "artificial intelligence", "deep learning", "nlp", "llm", "genai", "computer vision", "data science"])
-        
-        if not has_primary_kw and not has_strong_desc:
-            stats["errors"].append(f"[REJECT] Role: '{r_title}' | No AI/ML keywords found in title or description for {url}")
-            continue
+        if nexus_data:
+            # If Nexus successfully extracted data, we trust it completely!
+            if not nexus_data.get("is_ai_role", False):
+                stats["errors"].append(f"[NEXUS REJECT] Role: '{nexus_data.get('role_title')}' | AI determined it is not a true AI/ML role. {url}")
+                continue
+                
+            c_name = nexus_data.get("company_name", c_name)
+            r_title = nexus_data.get("role_title", r_title)
+            print(f"  [OK] NexusAI Approved: '{r_title}' at {c_name}")
+            
+        else:
+            # ── FALLBACK TO OLD HEURISTICS ──
+            # If Nexus fails (timeout, quota, etc.), safely fall back to the old regex rules
+            if not c_name or c_name.lower() in ["unknown", "n/a", "null"]:
+                stats["errors"].append(f"Skipping opportunity: company name not found for {url}")
+                continue
+                
+            if not r_title:
+                stats["errors"].append(f"Skipping opportunity: role is empty for {url}")
+                continue
+                
+            c_words = c_name.lower().split()
+            if all(w in KNOWN_CITIES for w in c_words) and len(c_words) > 0:
+                stats["errors"].append(f"Skipping opportunity: company name contains only city names ({c_name}) for {url}")
+                continue
 
+            # Strict AI/ML Rejection Rules
+            r_title_lower = r_title.lower()
+            if any(rej in r_title_lower for rej in HARD_REJECT_ROLES):
+                stats["errors"].append(f"[REJECT] Role: '{r_title}' | Hit hard-reject list for {url}")
+                continue
+                
+            desc_lower = snippet_text.lower()
+            
+            has_primary_kw = any(kw.lower() in r_title_lower for kw in PRIMARY_KEYWORDS)
+            has_strong_desc = any(kw.lower() in desc_lower for kw in ["machine learning", "artificial intelligence", "deep learning", "nlp", "llm", "genai", "computer vision", "data science"])
+            
+            if not has_primary_kw and not has_strong_desc:
+                stats["errors"].append(f"[REJECT] Role: '{r_title}' | No AI/ML keywords found in title or description for {url}")
+                continue
+                
+            print(f"  [OK] Heuristic Approved: '{r_title}' at {c_name}")
+
+        # ── FINAL VALIDATION ──
         if not validate_naukri_url(url):
             stats["errors"].append(f"Skipping opportunity: job is expired ({url})")
             continue
-            
-        print(f"  [OK] Valid AI/ML Role found: '{r_title}' at {c_name}")
         
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
