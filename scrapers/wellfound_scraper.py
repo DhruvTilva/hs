@@ -63,8 +63,10 @@ ROLE_SLUGS: list[str] = [
     "full-stack-engineer",
 ]
 
-LOCATION_SLUGS_PRIMARY: list[str] = ["india", "ahmedabad", "gujarat"]
-LOCATION_SLUGS_REMOTE: list[str] = ["remote"]
+LOCATION_SLUGS_PRIMARY: list[str] = ["ahmedabad", "gujarat"]
+# ── TEMPORARILY DISABLED: broader location slugs ───────────────────────────
+# LOCATION_SLUGS_PRIMARY: list[str] = ["india", "ahmedabad", "gujarat"]
+LOCATION_SLUGS_REMOTE: list[str] = ["remote"]  # kept for reference; PASS 2 disabled
 
 ROLE_PARAMS: list[str] = [
     "ml-engineer",
@@ -80,7 +82,9 @@ ROLE_PARAMS: list[str] = [
     "research-scientist",
 ]
 
-LOCATION_PARAMS: list[str] = ["ahmedabad", "gandhinagar", "india", "gujarat", "remote"]
+# ── TEMPORARILY DISABLED: broader location params ──────────────────────────
+# LOCATION_PARAMS: list[str] = ["ahmedabad", "gandhinagar", "india", "gujarat", "remote"]
+LOCATION_PARAMS: list[str] = ["ahmedabad", "gandhinagar"]
 
 # ─────────────────────────────────────────────────────────────
 # PART 2 — SESSION + HEADERS
@@ -435,8 +439,9 @@ _NOISE_TITLES: list[str] = [
 
 _LOCATION_SIGNALS: list[str] = [
     "ahmedabad", "gandhinagar", "gift", "gujarat",
-    "india", "remote", "work from home", "wfh",
-    "anywhere", "worldwide", "global",
+    # ── TEMPORARILY DISABLED: broader signals ────────────────────────────
+    # "india", "remote", "work from home", "wfh",
+    # "anywhere", "worldwide", "global",
 ]
 
 _SUFFIX_RE = re.compile(
@@ -463,8 +468,11 @@ def is_noise(title: str) -> bool:
 
 
 def is_location_relevant(location: str, remote_ok: bool) -> bool:
-    if remote_ok:
-        return True
+    # ── TEMPORARILY DISABLED: remote_ok auto-pass ──────────────────────────
+    # During primary-location-focus phase, remote jobs are not included.
+    # To re-enable: uncomment the two lines below.
+    # if remote_ok:
+    #     return True
     return any(s in location.lower() for s in _LOCATION_SIGNALS)
 
 
@@ -799,7 +807,6 @@ def main() -> int:
 
     def _run_url(url: str, source_label: str) -> None:
         nonlocal session
-        nonlocal session
         stats["total_requests"] += 1
         html, session = fetch_wellfound_page(url, session, stats)
         if not html:
@@ -831,27 +838,31 @@ def main() -> int:
                     print(f"  ✓  {role_slug} / {loc_slug} p2 [{method2}] → {len(jobs2)} jobs ({ins2} inserted)")
             _sleep(1.5, 3.0)
 
-    # ── PASS 2: Pattern A — remote roles ─────────────────────
-    print("\n=== PASS 2: Pattern A (remote roles) ===")
-    for role_slug in ROLE_SLUGS[:8]:
-        url = f"https://wellfound.com/role/l/{role_slug}/remote"
-        _run_url(url, f"{role_slug} / remote")
-        _sleep(2.0, 4.0)
+    # ── PASS 2 TEMPORARILY DISABLED ────────────────────────────────────────
+    # Remote-only role pages are outside primary-location scope.
+    # To re-enable: uncomment the block below.
+    # print("\n=== PASS 2: Pattern A (remote roles) ===")
+    # for role_slug in ROLE_SLUGS[:8]:
+    #     url = f"https://wellfound.com/role/l/{role_slug}/remote"
+    #     _run_url(url, f"{role_slug} / remote")
+    #     _sleep(2.0, 4.0)
 
-    # ── PASS 3: Pattern B — filtered search ──────────────────
-    print("\n=== PASS 3: Pattern B (filtered search) ===")
+    # ── PASS 3: Pattern B — filtered search (primary locations only) ──────
+    print("\n=== PASS 3: Pattern B (filtered search — primary locations) ===")
     for role_param in ROLE_PARAMS[:8]:
-        for loc_param in ["ahmedabad", "india", "remote"]:
+        for loc_param in LOCATION_PARAMS:  # now = ["ahmedabad", "gandhinagar"]
             url = f"https://wellfound.com/jobs?role={role_param}&location={loc_param}"
             _run_url(url, f"jobs?role={role_param}&loc={loc_param}")
             _sleep(2.0, 4.0)
 
-    # ── PASS 4: Pattern D — India location browse ────────────
-    print("\n=== PASS 4: Pattern D (India location browse) ===")
-    for page_num in range(1, 4):
-        url = f"https://wellfound.com/location/india?page={page_num}"
-        _run_url(url, f"location/india?page={page_num}")
-        _sleep(3.0, 5.0)
+    # ── PASS 4 TEMPORARILY DISABLED ────────────────────────────────────────
+    # Generic India location browse pulls jobs from all over India.
+    # To re-enable: uncomment the block below.
+    # print("\n=== PASS 4: Pattern D (India location browse) ===")
+    # for page_num in range(1, 4):
+    #     url = f"https://wellfound.com/location/india?page={page_num}"
+    #     _run_url(url, f"location/india?page={page_num}")
+    #     _sleep(3.0, 5.0)
 
     # ── PASS 5: Pattern C — watched company jobs ─────────────
     if watched_slugs:

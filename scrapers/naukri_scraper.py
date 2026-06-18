@@ -73,9 +73,12 @@ HARD_REJECT_ROLES: list[str] = [
     "system administrator", "network engineer", "test engineer"
 ]
 
-LOCATIONS_SECONDARY: list[str] = [
-    "India", "Work from home",
-]
+# ── TEMPORARILY DISABLED: Non-primary location targets ──────────────────────
+# To re-enable broader India/WFH search, uncomment the list below and
+# restore PASS 2 in main().
+# LOCATIONS_SECONDARY: list[str] = [
+#     "India", "Work from home",
+# ]
 
 # ─────────────────────────────────────────────────────────────
 # PART 2 — DEDUP & SCORING HELPERS
@@ -228,6 +231,18 @@ def validate_naukri_url(url: str) -> bool:
         print(f"    [WARN] Validation request failed for {url}: {e}")
         return True
 
+# ── Primary-location guard ───────────────────────────────────────────────────
+# Only these locations are accepted during this phase. Jobs parsed from URLs
+# with a location outside this set are silently rejected.
+_PRIMARY_LOCATIONS_GUARD: set[str] = {
+    "ahmedabad", "gandhinagar", "gift city", "giftcity", "gujarat",
+}
+
+def _is_primary_location(job_location: str) -> bool:
+    """Return True only if job_location matches our primary Gujarat targets."""
+    loc = job_location.lower().strip()
+    return any(p in loc for p in _PRIMARY_LOCATIONS_GUARD)
+
 def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, company_tiers: dict[str, Any]) -> None:
     # Use ddgs to search Naukri site
     query = f'site:naukri.com/job-listings "{keyword}" {location}'
@@ -293,6 +308,14 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             continue
             
         print(f"  [OK] Valid AI/ML Role found: '{r_title}' at {c_name}")
+
+        # ── Location guard: reject anything outside primary Gujarat targets ──
+        parsed_loc = parsed["job_location"]
+        if not _is_primary_location(parsed_loc):
+            stats["errors"].append(
+                f"[LOCATION REJECT] '{r_title}' at {c_name} — location '{parsed_loc}' outside primary targets"
+            )
+            continue
         
         # Scoring
         company_tier = company_tiers.get(clean_company(c_name))
@@ -449,11 +472,14 @@ def main() -> int:
             run_query(keyword, location, stats, client, company_tiers)
             time.sleep(random.uniform(2.0, 4.0))
 
-    print("\n=== PASS 2: Remote/WFH roles ===")
-    for keyword in PRIMARY_KEYWORDS[:kw_limit2]:
-        for location in LOCATIONS_SECONDARY[:loc_limit2]:
-            run_query(keyword, location, stats, client, company_tiers)
-            time.sleep(random.uniform(2.0, 4.0))
+    # ── PASS 2 TEMPORARILY DISABLED ────────────────────────────────────────
+    # Broadening to India/WFH is disabled for the primary-location-focus phase.
+    # To re-enable, uncomment the block below and restore LOCATIONS_SECONDARY.
+    # print("\n=== PASS 2: Remote/WFH roles ===")
+    # for keyword in PRIMARY_KEYWORDS[:kw_limit2]:
+    #     for location in LOCATIONS_SECONDARY[:loc_limit2]:
+    #         run_query(keyword, location, stats, client, company_tiers)
+    #         time.sleep(random.uniform(2.0, 4.0))
 
     print("\n=== PASS 3: Remaining keywords × Ahmedabad ===")
     for keyword in PRIMARY_KEYWORDS[20:20+kw_limit3] if kw_limit3 else PRIMARY_KEYWORDS[20:]:
