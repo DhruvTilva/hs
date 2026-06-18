@@ -299,21 +299,27 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
         
         # Extract posted date from DuckDuckGo snippet if available
         hours_old = 24.0
-        job_posted_at = None
-        match = re.search(r'(\d+)\+?\s*(day|hour|week|month)s?\s*ago', desc_lower, re.IGNORECASE)
+        match = re.search(r'(\d+\+?\s*(?:day|hour|week|month)s?\s*ago|today|yesterday|just now)', desc_lower, re.IGNORECASE)
+        posted_date_str = None
         if match:
-            val = int(match.group(1))
-            unit = match.group(2).lower()
-            if unit == "hour":
-                hours_old = float(val)
-            elif unit == "day":
-                hours_old = float(val * 24)
-            elif unit == "week":
-                hours_old = float(val * 24 * 7)
-            elif unit == "month":
-                hours_old = float(val * 24 * 30)
-            
-            job_posted_at = (datetime.now(timezone.utc) - timedelta(hours=hours_old)).isoformat()
+            posted_date_str = match.group(1).title() if "today" in match.group(1).lower() or "yesterday" in match.group(1).lower() else match.group(1)
+            # Try to calculate hours_old for scoring purposes
+            if "today" in posted_date_str.lower() or "just now" in posted_date_str.lower():
+                hours_old = 2.0
+            elif "yesterday" in posted_date_str.lower():
+                hours_old = 24.0
+            else:
+                val_match = re.search(r'(\d+)', posted_date_str)
+                if val_match:
+                    val = int(val_match.group(1))
+                    if "hour" in posted_date_str:
+                        hours_old = float(val)
+                    elif "day" in posted_date_str:
+                        hours_old = float(val * 24)
+                    elif "week" in posted_date_str:
+                        hours_old = float(val * 24 * 7)
+                    elif "month" in posted_date_str:
+                        hours_old = float(val * 24 * 30)
         
         base_score = calculate_priority_score(
             "normal", hours_old, parsed["title"], parsed["job_location"], company_tier,
@@ -329,7 +335,7 @@ def run_query(keyword: str, location: str, stats: dict[str, Any], client: Any, c
             "job_id": parsed["job_id"],
             "description": r.get("body", "")[:500],
             "hours_old": hours_old,
-            "job_posted_at": job_posted_at,
+            "posted_date_str": posted_date_str,
             "is_fresh": False,
             "source_method": "ddgs",
             "original_job_url": url,

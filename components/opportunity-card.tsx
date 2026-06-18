@@ -61,7 +61,7 @@ export function OpportunityCard({
       </div>
 
       <div style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-        {[sourceLabel(opportunity.source), (opportunity.raw_data as any)?.job_posted_at ? timeAgo((opportunity.raw_data as any).job_posted_at) : (opportunity.source === 'naukri' ? 'Unknown' : timeAgo(opportunity.found_at)), opportunity.location ?? 'Unknown location'].map((label) => (
+        {[sourceLabel(opportunity.source), (opportunity.raw_data as any)?.posted_date_str ? (opportunity.raw_data as any).posted_date_str : (opportunity.source === 'naukri' ? 'Unknown' : timeAgo(opportunity.found_at)), opportunity.location ?? 'Unknown location'].map((label) => (
           <span
             key={label}
             style={{

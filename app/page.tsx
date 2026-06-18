@@ -167,7 +167,7 @@ function UrgentCard({ opp, onApplied, onSkip }: {
         {opp.location ? `📍 ${opp.location} · ` : ''}
         {sourceIcon(opp.source)} {opp.source}
         <div style={{ marginTop: '0.15rem' }}>
-          Posted: {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))} · Discovered: {timeAgo(opp.found_at)}
+          Posted: {(opp.raw_data as any)?.posted_date_str ? (opp.raw_data as any).posted_date_str : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))} · Discovered: {timeAgo(opp.found_at)}
         </div>
       </div>
 
@@ -463,7 +463,7 @@ export default function HomePage() {
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                      {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
+                      {(opp.raw_data as any)?.posted_date_str ? (opp.raw_data as any).posted_date_str : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
                     </span>
                     <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{timeAgo(opp.found_at)}</span>
                   </div>
@@ -517,7 +517,7 @@ export default function HomePage() {
                       </span>
                     </div>
                     <p style={{ margin: '0.2rem 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Signal: {signalReason} · {(opp.raw_data as any)?.job_posted_at ? timeAgo((opp.raw_data as any).job_posted_at) : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
+                      Signal: {signalReason} · {(opp.raw_data as any)?.posted_date_str ? (opp.raw_data as any).posted_date_str : (opp.source === 'naukri' ? 'Unknown' : timeAgo(opp.found_at))}
                     </p>
                     <p style={{ margin: '0.2rem 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       Suggested contact: CTO / HR Manager
