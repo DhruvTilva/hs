@@ -70,7 +70,9 @@ def main():
 
     # Get companies from watchlist to find their employees
     print("[network] Fetching watchlist companies...")
-    watchlist = client.table("companies").select("name").execute().data or []
+    watchlist = []
+    if client:
+        watchlist = client.table("companies").select("name").execute().data or []
     
     company_queries = []
     for c in watchlist:
@@ -116,11 +118,15 @@ def main():
 
     for profile in discovered:
         try:
-            existing = client.table("recruiters").select("id").eq("linkedin_url", profile["linkedin_url"]).execute()
-            if existing.data:
-                continue
+            if client:
+                existing = client.table("recruiters").select("id").eq("linkedin_url", profile["linkedin_url"]).execute()
+                if existing.data:
+                    continue
 
-            client.table("recruiters").insert(profile).execute()
+                client.table("recruiters").insert(profile).execute()
+            else:
+                print(f"[dry-mode] Found recruiter: {profile['name']} at {profile.get('company')}")
+            
             new_found += 1
         except Exception as e:
             errors.append(f"{profile['name']}: {e}")
