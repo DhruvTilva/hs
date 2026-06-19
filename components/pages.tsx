@@ -55,7 +55,6 @@ type AddCompanyForm = {
 };
 const EMPTY_FORM: AddCompanyForm = { name: '', website: '', careers_url: '', linkedin_url: '', location: '', tier: '', ai_focus: '', notes: '' };
 
-
 const TH_STYLE: React.CSSProperties = {
   padding: '0.5rem 0.75rem',
   fontSize: '0.65rem',
@@ -76,15 +75,45 @@ const TD_STYLE: React.CSSProperties = {
   borderBottom: '1px solid var(--border)',
 };
 
+type SortConfig = { key: string | null; direction: 'asc' | 'desc'; };
+type FilterConfig = { company: string; tier: string[]; location: string[]; watched: 'all' | 'yes' | 'no'; };
+const DEFAULT_SORT: SortConfig = { key: null, direction: 'asc' };
+const DEFAULT_FILTERS: FilterConfig = { company: '', tier: [], location: [], watched: 'all' };
+
 export function CompaniesPage() {
-  const [companies, setCompanies] = useState<(Company & { last_signal?: string; last_signal_score?: number })[]>([]);
+  const [companies, setCompanies] = useState<(Company & { last_signal_score?: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddCompanyForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  
+  const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'watchlist' | 'discover'>('watchlist');
+  const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT);
+  const [filters, setFilters] = useState<FilterConfig>(DEFAULT_FILTERS);
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const savedSort = localStorage.getItem('hs_companies_sort');
+      if (savedSort) setSort(JSON.parse(savedSort));
+      const savedFilters = localStorage.getItem('hs_companies_filters');
+      if (savedFilters) setFilters(JSON.parse(savedFilters));
+      const savedTab = localStorage.getItem('hs_companies_tab');
+      if (savedTab === 'watchlist' || savedTab === 'discover') setActiveTab(savedTab);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('hs_companies_sort', JSON.stringify(sort));
+      localStorage.setItem('hs_companies_filters', JSON.stringify(filters));
+      localStorage.setItem('hs_companies_tab', activeTab);
+    }
+  }, [sort, filters, activeTab, isMounted]);
 
   async function load() {
     setLoading(true);
@@ -101,7 +130,6 @@ export function CompaniesPage() {
             .sort((a, b) => (b.found_at ?? '').localeCompare(a.found_at ?? ''))[0];
           return {
             ...company,
-            last_signal: latest ? `${latest.source} · ${latest.role_title ?? 'Open role'}` : 'No signal yet',
             last_signal_score: latest?.priority_score ?? company.priority_base_score ?? 0,
           };
         }),
@@ -115,7 +143,7 @@ export function CompaniesPage() {
 
   useEffect(() => { void load(); }, []);
 
-  async function toggleWatch(company: Company & { last_signal?: string; last_signal_score?: number }) {
+  async function toggleWatch(company: Company & { last_signal_score?: number }) {
     setWatchingId(company.id);
     try {
       await patchJson('/api/companies', { id: company.id, career_page_watched: !company.career_page_watched });
@@ -167,6 +195,124 @@ export function CompaniesPage() {
 
   const inputCls = 'hs-input';
   const formGrid: React.CSSProperties = { display: 'grid', gap: '0.65rem', gridTemplateColumns: '1fr' };
+
+  const filteredAndSortedCompanies = useMemo(() => {
+    let result = [...companies];
+    if (filters.company) {
+      const term = filters.company.toLowerCase();
+      result = result.filter(c => c.name.toLowerCase().includes(term));
+    }
+    if (filters.tier.length > 0) {
+      result = result.filter(c => c.tier != null && filters.tier.includes(c.tier.toString()));
+    }
+    if (filters.location.length > 0) {
+      result = result.filter(c => c.location != null && filters.location.includes(c.location));
+    }
+    if (filters.watched !== 'all') {
+      const isWatched = filters.watched === 'yes';
+      result = result.filter(c => c.career_page_watched === isWatched);
+    }
+    if (sort.key) {
+      result.sort((a, b) => {
+        let valA: any = a[sort.key as keyof typeof a];
+        let valB: any = b[sort.key as keyof typeof b];
+        if (sort.key === 'score') {
+          valA = a.last_signal_score ?? a.priority_base_score ?? 0;
+          valB = b.last_signal_score ?? b.priority_base_score ?? 0;
+        } else if (sort.key === 'watched') {
+          valA = a.career_page_watched ? 1 : 0;
+          valB = b.career_page_watched ? 1 : 0;
+        } else if (sort.key === 'company') {
+          valA = a.name; valB = b.name;
+        }
+        if (valA == null) valA = '';
+        if (valB == null) valB = '';
+        if (typeof valA === 'string' && typeof valB === 'string') {
+           const cmp = valA.localeCompare(valB);
+           if (cmp !== 0) return sort.direction === 'asc' ? cmp : -cmp;
+        } else {
+           if (valA < valB) return sort.direction === 'asc' ? -1 : 1;
+           if (valA > valB) return sort.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return result;
+  }, [companies, sort, filters]);
+
+  const uniqueLocations = useMemo(() => {
+    const locs = new Set<string>();
+    companies.forEach(c => { if (c.location) locs.add(c.location); });
+    return Array.from(locs).sort();
+  }, [companies]);
+
+  const uniqueTiers = useMemo(() => {
+    const t = new Set<string>();
+    companies.forEach(c => { if (c.tier != null) t.add(c.tier.toString()); });
+    return Array.from(t).sort();
+  }, [companies]);
+
+  const isFiltered = filters.company !== '' || filters.tier.length > 0 || filters.location.length > 0 || filters.watched !== 'all';
+
+  function ColumnHeader({ column, label, sortable, filterNode }: { column: string, label: string, sortable?: boolean, filterNode?: React.ReactNode }) {
+    const isOpen = openPopover === column;
+    const isFilteredCol = (column === 'company' && filters.company) || 
+                          (column === 'tier' && filters.tier.length > 0) || 
+                          (column === 'location' && filters.location.length > 0) || 
+                          (column === 'watched' && filters.watched !== 'all');
+
+    return (
+      <th style={{ ...TH_STYLE, position: 'relative' }}>
+        <div 
+          onClick={() => setOpenPopover(isOpen ? null : column)}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: (sortable || filterNode) ? 'pointer' : 'default', userSelect: 'none' }}
+        >
+          <span>{label}</span>
+          {sort.key === column && (
+            <span style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>
+              {sort.direction === 'asc' ? '▲' : '▼'}
+            </span>
+          )}
+          {isFilteredCol ? (
+            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--accent)', display: 'inline-block' }} />
+          ) : null}
+          {(sortable || filterNode) && <span style={{ opacity: 0.5, fontSize: '0.6rem' }}>▼</span>}
+        </div>
+        {isOpen && (sortable || filterNode) && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpenPopover(null)} />
+            <div 
+              style={{ 
+                position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', zIndex: 20,
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '0.5rem',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '0.75rem', minWidth: '12rem',
+                textTransform: 'none', letterSpacing: 'normal', fontWeight: 'normal', color: 'var(--text-primary)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {sortable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: filterNode ? '0.75rem' : 0, paddingBottom: filterNode ? '0.75rem' : 0, borderBottom: filterNode ? '1px solid var(--border)' : 'none' }}>
+                  <button 
+                    onClick={() => { setSort({ key: column, direction: 'asc' }); setOpenPopover(null); }}
+                    style={{ background: sort.key === column && sort.direction === 'asc' ? 'var(--bg-secondary)' : 'transparent', border: 'none', padding: '0.4rem 0.5rem', textAlign: 'left', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                  >
+                    ↑ Sort {column === 'score' ? 'Low → High' : (column === 'watched' ? 'Ascending' : 'A → Z')}
+                  </button>
+                  <button 
+                    onClick={() => { setSort({ key: column, direction: 'desc' }); setOpenPopover(null); }}
+                    style={{ background: sort.key === column && sort.direction === 'desc' ? 'var(--bg-secondary)' : 'transparent', border: 'none', padding: '0.4rem 0.5rem', textAlign: 'left', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                  >
+                    ↓ Sort {column === 'score' ? 'High → Low' : (column === 'watched' ? 'Descending' : 'Z → A')}
+                  </button>
+                </div>
+              )}
+              {filterNode}
+            </div>
+          </>
+        )}
+      </th>
+    );
+  }
 
   return (
     <AppShell title="Company Intelligence" subtitle="Curated set of targets and watch flags">
@@ -303,62 +449,144 @@ export function CompaniesPage() {
         <Panel>
           {loading ? (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody><SkeletonRows cols={8} rows={6} /></tbody>
+              <tbody><SkeletonRows cols={7} rows={6} /></tbody>
             </table>
           ) : !companies.length ? (
             <EmptyState icon="🏢" message="No companies yet. Use '+ Add Company' or import companies_seed.csv." />
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    {['#','Company','Tier','Location','Score','Watched','Last Signal','Action'].map((h) => (
-                      <th key={h} style={TH_STYLE}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {companies.map((company, idx) => (
-                    <tr key={company.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
-                      <td style={{ ...TD_STYLE, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                      <td style={{ ...TD_STYLE, fontWeight: 600, color: 'var(--text-primary)' }}>{company.name}</td>
-                      <td style={TD_STYLE}>{company.tier ?? '—'}</td>
-                      <td style={TD_STYLE}>{company.location ?? '—'}</td>
-                      <td style={TD_STYLE}><ScoreBadge score={company.last_signal_score ?? company.priority_base_score ?? 0} /></td>
-                      <td style={TD_STYLE}>
-                        <span style={{ color: company.career_page_watched ? 'var(--normal)' : 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>
-                          {company.career_page_watched ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                      <td style={{ ...TD_STYLE, maxWidth: '14rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {company.last_signal ?? 'No signal yet'}
-                      </td>
-                      <td style={TD_STYLE}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                          {company.careers_url && <GhostLink href={company.careers_url}>Visit Careers</GhostLink>}
-                          <button
-                            disabled={watchingId === company.id}
-                            onClick={() => void toggleWatch(company)}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                              borderRadius: '9999px', border: 'none',
-                              backgroundColor: company.career_page_watched ? 'var(--bg-secondary)' : 'var(--accent)',
-                              color: company.career_page_watched ? 'var(--text-primary)' : '#fff',
-                              padding: '0.35rem 0.7rem', fontSize: '0.75rem', fontWeight: 500,
-                              cursor: watchingId === company.id ? 'not-allowed' : 'pointer',
-                              transition: 'background-color 0.15s',
-                            }}
-                          >
-                            {watchingId === company.id ? <Spinner /> : null}
-                            {company.career_page_watched ? 'Unwatch' : 'Watch'}
-                          </button>
-                        </div>
-                      </td>
+            <>
+              {isFiltered && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Showing {filteredAndSortedCompanies.length} of {companies.length} companies</span>
+                  <button 
+                    onClick={() => setFilters(DEFAULT_FILTERS)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                  >
+                    Clear All Filters
+                  </button>
+                </div>
+              )}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={TH_STYLE}>#</th>
+                      <ColumnHeader 
+                        column="company" label="COMPANY" sortable 
+                        filterNode={
+                          <div>
+                            <input 
+                              autoFocus
+                              placeholder="Filter by name..." 
+                              value={filters.company} 
+                              onChange={(e) => setFilters(prev => ({ ...prev, company: e.target.value }))}
+                              style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '0.25rem', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                            />
+                          </div>
+                        }
+                      />
+                      <ColumnHeader 
+                        column="tier" label="TIER" sortable 
+                        filterNode={
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
+                            {uniqueTiers.map(t => (
+                              <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={filters.tier.includes(t)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setFilters(prev => ({ ...prev, tier: [...prev.tier, t] }));
+                                    else setFilters(prev => ({ ...prev, tier: prev.tier.filter(x => x !== t) }));
+                                  }}
+                                />
+                                Tier {t}
+                              </label>
+                            ))}
+                          </div>
+                        }
+                      />
+                      <ColumnHeader 
+                        column="location" label="LOCATION" sortable 
+                        filterNode={
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
+                            {uniqueLocations.map(l => (
+                              <label key={l} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={filters.location.includes(l)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setFilters(prev => ({ ...prev, location: [...prev.location, l] }));
+                                    else setFilters(prev => ({ ...prev, location: prev.location.filter(x => x !== l) }));
+                                  }}
+                                />
+                                {l}
+                              </label>
+                            ))}
+                          </div>
+                        }
+                      />
+                      <ColumnHeader column="score" label="SCORE" sortable />
+                      <ColumnHeader 
+                        column="watched" label="WATCHED" sortable 
+                        filterNode={
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {['all', 'yes', 'no'].map(opt => (
+                              <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer', textTransform: 'capitalize' }}>
+                                <input 
+                                  type="radio" 
+                                  name="watched_filter"
+                                  checked={filters.watched === opt}
+                                  onChange={() => setFilters(prev => ({ ...prev, watched: opt as any }))}
+                                />
+                                {opt}
+                              </label>
+                            ))}
+                          </div>
+                        }
+                      />
+                      <th style={TH_STYLE}>ACTION</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedCompanies.map((company, idx) => (
+                      <tr key={company.id} style={{ backgroundColor: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+                        <td style={{ ...TD_STYLE, color: 'var(--text-muted)' }}>{idx + 1}</td>
+                        <td style={{ ...TD_STYLE, fontWeight: 600, color: 'var(--text-primary)' }}>{company.name}</td>
+                        <td style={TD_STYLE}>{company.tier ?? '—'}</td>
+                        <td style={TD_STYLE}>{company.location ?? '—'}</td>
+                        <td style={TD_STYLE}><ScoreBadge score={company.last_signal_score ?? company.priority_base_score ?? 0} /></td>
+                        <td style={TD_STYLE}>
+                          <span style={{ color: company.career_page_watched ? 'var(--normal)' : 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem' }}>
+                            {company.career_page_watched ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td style={TD_STYLE}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {company.careers_url && <GhostLink href={company.careers_url}>Visit Careers</GhostLink>}
+                            <button
+                              disabled={watchingId === company.id}
+                              onClick={() => void toggleWatch(company)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                borderRadius: '9999px', border: 'none',
+                                backgroundColor: company.career_page_watched ? 'var(--bg-secondary)' : 'var(--accent)',
+                                color: company.career_page_watched ? 'var(--text-primary)' : '#fff',
+                                padding: '0.35rem 0.7rem', fontSize: '0.75rem', fontWeight: 500,
+                                cursor: watchingId === company.id ? 'not-allowed' : 'pointer',
+                                transition: 'background-color 0.15s',
+                              }}
+                            >
+                              {watchingId === company.id ? <Spinner /> : null}
+                              {company.career_page_watched ? 'Unwatch' : 'Watch'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </Panel>
           </>
