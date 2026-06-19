@@ -7,27 +7,28 @@ const NEXUS_KEY = process.env.NEXUS_API_KEY || 'dt-ask';
 
 export async function askGemini(prompt: string): Promise<string> {
   // ── STEP 1: Try NexusAI Gateway First ──
-  // We use an 8-second timeout because Vercel Serverless functions (Hobby) timeout at 10s.
-  // If Render is asleep (cold start), it will hit the timeout and we safely fall back to Gemini.
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+  // If the user has their own API key, bypass NexusAI entirely for maximum speed and token allowance.
+  if (!GEMINI_API_KEY) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch(NEXUS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': NEXUS_KEY },
-      body: JSON.stringify({ prompt, provider: 'auto', max_tokens: 2048 }),
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
+      const res = await fetch(NEXUS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': NEXUS_KEY },
+        body: JSON.stringify({ prompt, provider: 'auto', max_tokens: 8192 }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = await res.json() as { response?: string };
-      if (data.response) return data.response;
+      if (res.ok) {
+        const data = await res.json() as { response?: string };
+        if (data.response) return data.response;
+      }
+    } catch (error) {
+      console.warn('NexusAI failed or timed out (cold start). Falling back to direct Gemini API.');
     }
-  } catch (error) {
-    console.warn('NexusAI failed or timed out (cold start). Falling back to direct Gemini API.');
   }
 
   // ── STEP 2: Safe Fallback to Direct Gemini ──
@@ -43,7 +44,7 @@ export async function askGemini(prompt: string): Promise<string> {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
         },
       }),
     });
