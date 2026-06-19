@@ -189,11 +189,18 @@ Valid values:
     }
 
     // ── STEP 5: Parse Gemini JSON ────────────────────────────
-    // Strip markdown code fences if present
-    const cleanJson = geminiRaw
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/, '')
-      .trim();
+    let cleanJson = geminiRaw;
+    const match = geminiRaw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (match) {
+      cleanJson = match[1].trim();
+    } else {
+      // Fallback if no backticks are used at all but the text starts/ends with {}
+      const firstBrace = cleanJson.indexOf('{');
+      const lastBrace = cleanJson.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+      }
+    }
 
     let intelligence: unknown;
     let parseError = false;
