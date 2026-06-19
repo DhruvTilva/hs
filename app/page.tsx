@@ -4,6 +4,9 @@ import { AppShell } from '@/components/app-shell';
 import { createServerSupabase } from '@/lib/supabase';
 import { Metric, Panel, SectionTitle, GhostLink } from '@/components/ui';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function Home() {
   const supabase = createServerSupabase();
 
@@ -12,7 +15,7 @@ export default async function Home() {
     totalCompanies: 0,
     newContactsToday: 0,
     careerPageChanges: 0,
-    followUpsDue: 0,
+    watchedCompanies: 0,
   };
 
   let recentCareerChanges: { company_name: string; role_title: string; apply_url: string; found_at: string }[] = [];
@@ -55,13 +58,12 @@ export default async function Home() {
     recentCareerChanges = careerChanges || [];
     stats.careerPageChanges = recentCareerChanges.length;
 
-    // 5. Follow ups due
-    const { count: followUps } = await supabase
-      .from('opportunities')
+    // 5. Watched Companies
+    const { count: watchedCount } = await supabase
+      .from('companies')
       .select('*', { count: 'exact', head: true })
-      .lte('follow_up_date', new Date().toISOString().slice(0, 10))
-      .not('status', 'in', '("offer", "rejected")');
-    stats.followUpsDue = followUps || 0;
+      .eq('career_page_watched', true);
+    stats.watchedCompanies = watchedCount || 0;
   }
 
   return (
@@ -95,11 +97,11 @@ export default async function Home() {
               valueColor={stats.newContactsToday > 0 ? 'var(--watching)' : undefined}
             />
             <Metric
-              label="Follow-ups Due"
-              value={stats.followUpsDue}
+              label="Watched Companies"
+              value={stats.watchedCompanies}
               accentClass="metric-applied"
               labelColor="var(--normal)"
-              valueColor={stats.followUpsDue > 0 ? 'var(--normal)' : undefined}
+              valueColor={stats.watchedCompanies > 0 ? 'var(--normal)' : undefined}
             />
           </div>
         </Panel>

@@ -642,36 +642,36 @@ Run this once in **Supabase → SQL Editor** after setting up for the first time
 
 ---
 
-## Interview Intelligence Setup
+## Interview Intelligence Setup (Deep Fetch Engine)
 
-A built-in AI feature that researches interview experiences from Glassdoor, Reddit, and AmbitionBox, then generates a structured intelligence report using Gemini.
+A built-in AI feature that researches real interview experiences from developer communities (LeetCode Discuss, TeamBlind, Reddit, GitHub, Glassdoor), reads the deep context of the threads, and generates a structured intelligence report using Gemini.
 
-### Setup steps
+### Setup steps (First-time Testing)
 
-1. **Get a free Gemini API key**: Go to [aistudio.google.com](https://aistudio.google.com), sign in, and create an API key.
-2. **Add to `.env.local`**:
+To test the advanced scraping and intelligence features immediately:
+
+1. **Get a free Gemini API key**: Go to [aistudio.google.com](https://aistudio.google.com), sign in, and create an API key. This takes 2 minutes and is completely free.
+2. **Get a free SerpAPI key**: Go to [serpapi.com](https://serpapi.com) and create an account to get 100 free Google searches per month.
+3. **Add them to your `.env.local`**:
    ```env
-   GEMINI_API_KEY=your_key_here
+   GEMINI_API_KEY=your_gemini_key_here
+   SERPAPI_KEY=your_serpapi_key_here
    ```
-3. **Optional — Google Custom Search** (for richer results):
-   - Create a Custom Search Engine at [programmablesearchengine.google.com](https://programmablesearchengine.google.com).
-   - Get an API key from [console.cloud.google.com](https://console.cloud.google.com) → APIs → Custom Search JSON API.
-   - Add to `.env.local`:
-     ```env
-     GOOGLE_SEARCH_KEY=your_google_key
-     GOOGLE_SEARCH_CX=your_search_engine_id
-     ```
-   - If `GOOGLE_SEARCH_KEY` is not set, the feature falls back to `SERPAPI_KEY` (if configured), then to Gemini-only mode using just the job description.
-4. **Visit `/interview`** in your dashboard to use the feature.
+4. **Restart the server**: Stop your terminal with `Ctrl+C` and run `npm run dev` again to load the new keys.
+5. **Test it**: Visit `http://localhost:3000/interview` in your dashboard. Enter a company name (e.g., "Maruti Techlabs" or "Google") and a Role Title (e.g., "Data Scientist"). Click **Analyze Interview**.
 
-### How it works
+### How it works (The Deep Fetch Engine)
 
-1. Runs 8 searches in parallel across Glassdoor, Reddit, and AmbitionBox.
-2. Combines all snippets into a context blob (max 8 000 chars).
-3. Sends everything to `gemini-2.0-flash` with a structured prompt.
-4. Returns a full intelligence report: interview rounds, most-asked questions (with category tabs), topics to prepare, candidate tips, smart questions to ask, and salary/red-flag signals.
+1. **Targeted Queries**: Runs 8 search queries in parallel specifically targeting leaked questions on LeetCode Discuss, TeamBlind, Reddit, and GitHub.
+2. **Deep Reading**: It finds the top 3 developer links and actually downloads the *full page HTML text* (up to 15,000 characters per page), skipping the shallow 160-character Google snippets.
+3. **Massive Context Window**: Combines all snippets and full-page text into a massive context blob (up to 40,000 characters).
+4. **AI Processing**: Sends everything to the Gemini API (using an expanded 8,192 token limit to prevent truncation) with a structured prompt.
+5. **The Report**: Returns a highly detailed intelligence report featuring:
+   - **🔥 Insider Gold Mine Secrets**: The AI extracts unwritten rules, exact puzzle questions, and specific interviewer preferences.
+   - **🔮 AI Predicted Core Questions**: The AI analyzes the tech stack and predicts 5-6 questions you are *guaranteed* to be asked, alongside simple cheat-sheet answers.
+   - **Standard Metrics**: Interview rounds, most-asked questions, topics to prepare, candidate tips, smart questions to ask, and salary/red-flag signals.
 
-The feature degrades gracefully — if no search APIs are configured, Gemini generates advice from general patterns and the job description alone.
+The feature degrades gracefully — if no search APIs are configured, Gemini generates predictive advice from general industry patterns based solely on the job description.
 
 ---
 
