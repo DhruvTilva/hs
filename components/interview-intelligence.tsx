@@ -25,6 +25,7 @@ export interface TopicToPrepare {
 
 export interface InterviewIntelligence {
   company_summary: string;
+  gold_mine_secrets?: string[];
   interview_rounds: InterviewRound[];
   repeated_questions: RepeatedQuestion[];
   topics_to_prepare: TopicToPrepare[];
@@ -128,6 +129,23 @@ function OverviewCard({ intel }: { intel: InterviewIntelligence }) {
           <Badge label="⚠️ Low Confidence" bg="#fffbeb" color="#d97706" />
         )}
       </div>
+    </Card>
+  );
+}
+
+/* ── Card 1.5: Gold Mine Secrets ──────────────────────────────── */
+function GoldMineCard({ secrets }: { secrets: string[] }) {
+  if (!secrets || secrets.length === 0) return null;
+  return (
+    <Card style={{ background: 'linear-gradient(145deg, #fffbeb, #fef3c7)', borderColor: '#fde68a' }}>
+      <SectionTitle>🔥 Insider Gold Mine Secrets</SectionTitle>
+      <ul style={{ margin: 0, paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        {secrets.map((secret, i) => (
+          <li key={i} style={{ fontSize: '0.85rem', color: '#92400e', lineHeight: 1.5, fontWeight: 500 }}>
+            {secret}
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -407,6 +425,7 @@ export function InterviewIntelligenceResult({ data }: { data: IntelligenceRespon
       )}
 
       <OverviewCard intel={intel} />
+      {intel.gold_mine_secrets && intel.gold_mine_secrets.length > 0 && <GoldMineCard secrets={intel.gold_mine_secrets} />}
       {intel.interview_rounds?.length > 0 && <RoundsCard rounds={intel.interview_rounds} />}
       {intel.repeated_questions?.length > 0 && <QuestionsCard questions={intel.repeated_questions} />}
       {intel.topics_to_prepare?.length > 0 && <TopicsCard topics={intel.topics_to_prepare} />}

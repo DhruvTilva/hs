@@ -82,17 +82,17 @@ export async function POST(req: NextRequest) {
 
     // ── STEP 1: Run all searches in parallel ─────────────────
     const queries: string[] = [
-      `${company_name} interview experience`,
-      `${company_name} ${role_title} interview questions`,
+      `site:leetcode.com/discuss "${company_name}" interview experience`,
+      `site:teamblind.com "${company_name}" interview`,
+      `"${company_name}" "exact interview questions" GitHub`,
       `${company_name} interview experience Glassdoor`,
       `${company_name} interview experience Reddit`,
-      `${company_name} interview experience AmbitionBox`,
-      `site:reddit.com ${company_name} interview`,
       `${company_name} ${role_title} hiring process`,
       `${company_name} technical interview machine learning`,
     ];
 
     const fallbackUrls: string[] = [
+      `https://www.leetcode.com/discuss/interview-experience?search=${encodeURIComponent(company_name)}`,
       `https://www.ambitionbox.com/interviews/${slug}-interview-questions`,
       `https://www.glassdoor.co.in/Interview/${slug}-Interview-Questions`,
       `https://www.reddit.com/search/?q=${encodeURIComponent(company_name)}+interview&type=link`,
@@ -112,12 +112,34 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // ── STEP 2: Build snippet blob (max 8000 chars) ──────────
+    // ── STEP 1.5: Deep Fetch "Gold Mine" Full Text ───────────
+    const deepFetchUrls = rawSources.filter(url => 
+      url.includes('reddit.com') || url.includes('leetcode.com') || url.includes('teamblind.com') || url.includes('github.com')
+    ).slice(0, 3);
+
+    const deepContents = await Promise.all(
+      deepFetchUrls.map(async (url) => {
+        try {
+          const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 3600 } });
+          if (!res.ok) return '';
+          const html = await res.text();
+          const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 15000); 
+          return `\n\n--- FULL PAGE CONTENT FROM: ${url} ---\n${text}\n`;
+        } catch {
+          return '';
+        }
+      })
+    );
+
+    // ── STEP 2: Build snippet blob (max 40000 chars) ──────────
     let snippetBlob = allResults
+      .slice(0, 20)
       .map((r) => `SOURCE: ${r.link}\nTITLE: ${r.title}\nSNIPPET: ${r.snippet}`)
       .join('\n\n---\n\n');
 
-    if (snippetBlob.length > 8000) snippetBlob = snippetBlob.slice(0, 8000);
+    snippetBlob += deepContents.join('');
+
+    if (snippetBlob.length > 40000) snippetBlob = snippetBlob.slice(0, 40000);
 
     const noDataFound = snippetBlob.trim().length === 0;
 
@@ -132,12 +154,15 @@ JOB DESCRIPTION (if provided):
 ${job_description || 'Not provided'}
 
 Based on this information, provide a structured interview intelligence report.
+Extract the absolute most valuable, hidden, or 'gold mine' secrets. Look for exact puzzle questions, unwritten rules, specific interviewers' favorite topics, or cheat codes to pass the interview.
+
 ${noDataFound ? 'Since no specific data was found, base your response on general industry patterns for this role type and company type.' : ''}
 
 Respond ONLY with valid JSON — no markdown, no code fences, no explanation. The JSON must match this exact schema:
 
 {
   "company_summary": "2-3 sentences about the company and their AI/tech focus",
+  "gold_mine_secrets": ["Highly specific insider secret, exact puzzle, unwritten rule, or cheat code"],
   "interview_rounds": [
     {
       "round_number": 1,
