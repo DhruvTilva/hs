@@ -693,23 +693,66 @@ export function CompaniesPage() {
                               </span>
                             </td>
                             <td style={TD_STYLE}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                {company.careers_url && <GhostLink href={company.careers_url}>Visit Careers</GhostLink>}
+                              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '0.4rem', alignItems: 'center' }}>
+                                {company.careers_url ? (
+                                  <a href={company.careers_url} target="_blank" rel="noopener noreferrer" style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    borderRadius: '0.35rem', border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
+                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
+                                  }} title="Visit Careers">
+                                    💼
+                                  </a>
+                                ) : (
+                                  <span style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    borderRadius: '0.35rem', border: '1px solid transparent',
+                                    backgroundColor: 'transparent', color: 'var(--text-muted)',
+                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    opacity: 0.4, cursor: 'not-allowed'
+                                  }} title="No Careers URL">
+                                    💼
+                                  </span>
+                                )}
+
+                                {company.linkedin_url ? (
+                                  <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer" style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    borderRadius: '0.35rem', border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
+                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
+                                  }} title="Visit LinkedIn">
+                                    🔗
+                                  </a>
+                                ) : (
+                                  <span style={{
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    borderRadius: '0.35rem', border: '1px solid transparent',
+                                    backgroundColor: 'transparent', color: 'var(--text-muted)',
+                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    opacity: 0.4, cursor: 'not-allowed'
+                                  }} title="No LinkedIn URL">
+                                    🔗
+                                  </span>
+                                )}
+
                                 <button
                                   disabled={watchingId === company.id}
+                                  title={company.career_page_watched ? 'Unwatch' : 'Watch'}
                                   onClick={() => void toggleWatch(company)}
                                   style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                                    borderRadius: '9999px', border: 'none',
-                                    backgroundColor: company.career_page_watched ? 'var(--bg-secondary)' : 'var(--accent)',
-                                    color: company.career_page_watched ? 'var(--text-primary)' : '#fff',
-                                    padding: '0.35rem 0.7rem', fontSize: '0.75rem', fontWeight: 500,
+                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                    borderRadius: '0.35rem', border: company.career_page_watched ? '1px solid var(--accent)' : '1px solid var(--border)',
+                                    backgroundColor: company.career_page_watched ? 'var(--accent)' : 'var(--bg-primary)',
+                                    color: company.career_page_watched ? '#fff' : 'var(--text-secondary)',
+                                    padding: '0.35rem', fontSize: '0.85rem',
                                     cursor: watchingId === company.id ? 'not-allowed' : 'pointer',
-                                    transition: 'background-color 0.15s',
+                                    transition: 'all 0.15s'
                                   }}
                                 >
-                                  {watchingId === company.id ? <Spinner /> : null}
-                                  {company.career_page_watched ? 'Unwatch' : 'Watch'}
+                                  {watchingId === company.id ? <Spinner /> : (company.career_page_watched ? '⭐' : '☆')}
                                 </button>
                               </div>
                             </td>
