@@ -59,6 +59,27 @@ TECH_FOUNDER_SIGNALS = [
     "amazon", "phd", "ml", "ai", "data scientist", "researcher", "cto",
 ]
 
+LINKEDIN_DISCOVERY_QUERIES = [
+    'site:linkedin.com/company "artificial intelligence" "Ahmedabad"',
+    'site:linkedin.com/company "machine learning" "Ahmedabad"',
+    'site:linkedin.com/company "AI" "Gujarat"',
+    'site:linkedin.com/company "data science" "Ahmedabad"',
+    'site:linkedin.com/company "GenAI" OR "LLM" "Gujarat"',
+    'site:linkedin.com/company "AI" "GIFT City"',
+    'site:linkedin.com/company "deep learning" "Ahmedabad"',
+    'site:linkedin.com/company "NLP" OR "computer vision" "Gujarat"',
+    'site:linkedin.com/company "AI startup" "Ahmedabad" OR "Gandhinagar"',
+    'site:linkedin.com/company "ML" "fintech" "GIFT City"',
+]
+
+OTHER_DISCOVERY_QUERIES = [
+    'site:clutch.co/in/it-services/artificial-intelligence "Ahmedabad"',
+    'site:clutch.co/in/it-services/artificial-intelligence "Gandhinagar"',
+    'site:indiaai.gov.in/startup "Ahmedabad" OR "Gujarat"',
+    'site:nasscom.in/member-directory "Artificial Intelligence" "Gujarat"',
+    'site:tracxn.com "Artificial Intelligence Startups in Ahmedabad"',
+]
+
 ROTATING_HEADERS = [
     {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -169,6 +190,44 @@ def scrape_google_news() -> list[dict[str, Any]]:
     print(f"[news] Found {len(discovered)} raw companies")
     return discovered
 
+# ── Source 1.5: Google Search (LinkedIn & Others) ──────────────────────────────
+
+def scrape_search_queries() -> list[dict[str, Any]]:
+    print("[search] Starting Google Search discovery (LinkedIn, Clutch, NASSCOM)...")
+    discovered: list[dict[str, Any]] = []
+
+    all_queries = LINKEDIN_DISCOVERY_QUERIES + OTHER_DISCOVERY_QUERIES
+    for query in all_queries:
+        try:
+            results = google_search(query, num=5)
+            for r in results:
+                title = r.get("title", "")
+                url = r.get("url", "")
+                
+                # Extract company name from title (e.g., "Company Name - LinkedIn", "Company Name - Clutch")
+                name_candidate = re.split(r'\s*[-\|]\s*(LinkedIn|Clutch|IndiaAI|NASSCOM|Tracxn)', title)[0].strip()
+                
+                # Clean up "Overview", "About", etc.
+                name_candidate = re.sub(r'^(About|Overview)\s+', '', name_candidate, flags=re.IGNORECASE)
+                name_candidate = name_candidate.replace(" - Overview, News & Similar companies", "")
+                
+                if len(name_candidate) < 3 or len(name_candidate) > 60:
+                    continue
+                    
+                discovered.append({
+                    "name": name_candidate,
+                    "location": "Ahmedabad",
+                    "source": "Search Queries",
+                    "source_url": url,
+                })
+            
+            time.sleep(random.uniform(2.0, 4.0))
+        except Exception as e:
+            print(f"[search] Error for query '{query}': {e}")
+
+    print(f"[search] Found {len(discovered)} raw companies")
+    return discovered
+
 # ── Source 2: Startup India Portal ────────────────────────────────────────────
 
 def scrape_startup_india() -> list[dict[str, Any]]:
@@ -271,7 +330,17 @@ def verify_company(company_name: str, location: str = "Ahmedabad") -> dict[str, 
         "ai_ml_signals": [],
     }
 
-    # Search 1: website
+    # Search 1: LinkedIn (Highest Priority)
+    try:
+        li_results = google_search(f'site:linkedin.com/company "{company_name}"', num=3)
+        if li_results:
+            result["has_linkedin"] = True
+            result["linkedin_url"] = li_results[0]["url"]
+        time.sleep(random.uniform(1, 2))
+    except Exception:
+        pass
+
+    # Search 2: website
     try:
         results = google_search(f"{company_name} {location} official website AI", num=5)
         for r in results:
@@ -280,16 +349,6 @@ def verify_company(company_name: str, location: str = "Ahmedabad") -> dict[str, 
                 result["has_website"] = True
                 result["website_url"] = r["url"]
                 break
-        time.sleep(random.uniform(1, 2))
-    except Exception:
-        pass
-
-    # Search 2: LinkedIn
-    try:
-        li_results = google_search(f'site:linkedin.com/company "{company_name}"', num=3)
-        if li_results:
-            result["has_linkedin"] = True
-            result["linkedin_url"] = li_results[0]["url"]
         time.sleep(random.uniform(1, 2))
     except Exception:
         pass
@@ -371,6 +430,7 @@ def main() -> int:
 
     # Gather from all sources
     discovered: list[dict[str, Any]] = []
+    discovered += scrape_search_queries()
     discovered += scrape_google_news()
     discovered += scrape_startup_india()
     discovered += scrape_gift_city()

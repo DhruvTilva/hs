@@ -43,26 +43,19 @@ function ThemeToggle() {
   );
 }
 
-/* ── Page title map ──────────────────────────────────────── */
 const PAGE_TITLES: Record<string, string> = {
-  '/opportunities': '💼 All Opportunities',
-  '/companies':     '🏢 Company Watch List',
-  '/proactive':     '🎯 Proactive Outreach',
-  '/tracker':       '📋 Application Tracker',
-  '/interview':     '🧠 Interview Intelligence',
-  '/discover':      '🔭 Company Discovery',
+  '/companies':     '🏢 Company Intelligence',
+  '/network':       '🔗 Network Intelligence',
+  '/interview':     '🧠 Interview Prep',
   '/guide':         '📖 Success Guide',
 };
 
 /* ── Mobile nav config ───────────────────────────────────── */
 const MOB_NAV = [
   { href: '/',               icon: '🏠', label: 'Home'      },
-  { href: '/opportunities',  icon: '💼', label: 'Jobs'      },
   { href: '/companies',      icon: '🏢', label: 'Companies' },
-  { href: '/tracker',        icon: '📋', label: 'Tracker'   },
-  { href: '/proactive',      icon: '🎯', label: 'Proactive' },
+  { href: '/network',        icon: '🔗', label: 'Network'   },
   { href: '/interview',      icon: '🧠', label: 'Interview' },
-  { href: '/discover',       icon: '🔭', label: 'Discover'  },
   { href: '/guide',          icon: '📖', label: 'Guide'     },
 ];
 
@@ -86,38 +79,42 @@ export function AppShell({
       <header className="sticky-header">
         <div style={{ maxWidth: '72rem', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
 
-          {/* Left: back link */}
+          {/* Left: Home / Logo */}
           <a
             href="/"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)',
+              fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)',
               textDecoration: 'none', flexShrink: 0,
-              border: '1px solid var(--border)', borderRadius: '9999px',
-              padding: '0.25rem 0.65rem',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
-            onMouseOver={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.color = 'var(--accent)';
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--accent)';
-            }}
-            onMouseOut={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text-secondary)';
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)';
             }}
           >
-            ← Home
+            🎯 HireSense
           </a>
 
-          {/* Center: page title */}
-          <h1 style={{
-            margin: 0, flex: 1, textAlign: 'center',
-            fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', fontWeight: 700,
-            color: 'var(--text-primary)', lineHeight: 1.2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {pageTitle}
-          </h1>
+          {/* Center: Desktop Nav */}
+          <nav className="desktop-nav-links" style={{ gap: '1.5rem', alignItems: 'center' }}>
+            {MOB_NAV.map((item) => {
+              if (item.href === '/') return null; // Skip Home in desktop nav
+              const isActive = pathname === item.href;
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  style={{
+                    textDecoration: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    borderBottom: isActive ? '2px solid var(--text-primary)' : '2px solid transparent',
+                    paddingBottom: '0.2rem',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {item.icon} {item.label}
+                </a>
+              );
+            })}
+          </nav>
 
           {/* Right: dark mode toggle */}
           <ThemeToggle />

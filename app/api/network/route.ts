@@ -10,39 +10,80 @@ function supabase() {
 export async function GET() {
   const db = supabase()
 
-  // Fetch current batch from recruiter_leads (display table)
-  const { data: leads, error: leadsError } = await db
-    .from('recruiter_leads')
+  // Fetch from recruiters table
+  const { data: profiles, error } = await db
+    .from('recruiters')
     .select('*')
-    .order('discovered_at', { ascending: false })
+    .order('contact_date', { ascending: false, nullsFirst: true })
 
-  if (leadsError) {
-    return NextResponse.json({ error: leadsError.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Fetch all-time count from permanent recruiters table
   const { count: totalAllTime } = await db
     .from('recruiters')
     .select('id', { count: 'exact', head: true })
 
-  const profiles = leads ?? []
+  const validProfiles = profiles ?? []
 
   // Stats
   const byCategory: Record<string, number> = {}
   const byLocation: Record<string, number> = {}
 
-  for (const p of profiles) {
-    const cat = p.category ?? 'unknown'
-    const loc = p.location ?? 'Unknown'
+  for (const p of validProfiles) {
+    const cat = p.hiring_focus ?? 'unknown'
+    const loc = p.company ?? 'Unknown'
     byCategory[cat] = (byCategory[cat] ?? 0) + 1
     byLocation[loc] = (byLocation[loc] ?? 0) + 1
   }
 
   return NextResponse.json({
-    profiles,
-    today_count: profiles.length,
+    profiles: validProfiles.map(p => ({
+      id: p.id,
+      name: p.name,
+      linkedin_url: p.linkedin_url,
+      company: p.company,
+      headline: p.title,
+      location: null, // we don't have location in schema, skip or map
+      category: p.hiring_focus,
+      discovered_at: p.last_active,
+      contacted: p.contacted,
+      contact_date: p.contact_date,
+      notes: p.notes,
+    })),
+    today_count: validProfiles.filter(p => !p.contacted).length, // using uncontacted as today's batch
     all_time_count: totalAllTime ?? 0,
     by_category: byCategory,
     by_location: byLocation,
   })
+}
+
+export async function PATCH(request: Request) {
+  const db = supabase()
+  const body = await request.json()
+  const { id, contacted, notes } = body
+
+  if (!id) {
+    return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+  }
+
+  const updates: Record<string, any> = {}
+  if (contacted !== undefined) {
+    updates.contacted = contacted
+    updates.contact_date = contacted ? new Date().toISOString() : null
+  }
+  if (notes !== undefined) {
+    updates.notes = notes
+  }
+
+  const { error } = await db
+    .from('recruiters')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
 }

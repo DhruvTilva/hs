@@ -11,7 +11,6 @@ if str(ROOT) not in sys.path:
 
 from scrapers.common import get_supabase_client, log_scraper_run, send_telegram_message
 
-
 def main() -> int:
     client = get_supabase_client()
     if client is None:
@@ -19,62 +18,73 @@ def main() -> int:
         return 0
 
     since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
-    rows = (
-        client.table("opportunities")
-        .select("company_name, role_title, priority_score, source, found_at, apply_url, location")
-        .gte("found_at", since)
-        .order("priority_score", desc=True)
+    
+    # 1. New Companies
+    companies_data = (
+        client.table("discovered_companies")
+        .select("name, potential_score")
+        .gte("discovered_at", since)
+        .order("potential_score", desc=True)
         .execute()
-        .data
-        or []
+        .data or []
+    )
+    
+    # 2. New Network Profiles
+    network_data = (
+        client.table("recruiters")
+        .select("name, company, title")
+        .gte("last_active", since[:10]) # Date format
+        .execute()
+        .data or []
+    )
+    
+    # 3. Career Page Alerts
+    career_changes = (
+        client.table("opportunities")
+        .select("company_name, role_title, apply_url")
+        .eq("source", "career_page")
+        .gte("found_at", since)
+        .execute()
+        .data or []
     )
 
-    urgent = [row for row in rows if (row.get("priority_score") or 0) >= 70]
-    watching = [row for row in rows if 40 <= (row.get("priority_score") or 0) < 70]
-    normal = [row for row in rows if (row.get("priority_score") or 0) < 40]
-
-    career_changes = sum(1 for row in rows if row.get("source") == "career_page")
-    linkedin_alerts = sum(1 for row in rows if row.get("source") == "linkedin_email")
-    google_signals = sum(1 for row in rows if row.get("source") in {"google_search", "google_alert"})
     dashboard_url = os.getenv("DASHBOARD_URL") or os.getenv("VERCEL_URL")
     if dashboard_url and not dashboard_url.startswith("http"):
         dashboard_url = f"https://{dashboard_url}"
 
     lines = [
-        "📊 Good Morning — AI Job Radar Daily Summary",
+        "📊 Good Morning — HireSense Intel Brief",
         "",
-        f"🔴 Urgent (70+): {len(urgent)} opportunities",
-        f"🟡 Watching (40-69): {len(watching)} opportunities",
-        f"🟢 Normal (<40): {len(normal)} opportunities",
+        f"🏢 New Companies Discovered: {len(companies_data)}",
+        f"🔗 New Network Profiles Found: {len(network_data)}",
+        f"🚨 Career Page Updates: {len(career_changes)}",
         "",
-        "🎯 Top 3 to act on:",
     ]
+    
+    if career_changes:
+        lines.append("🎯 Career Page Alerts:")
+        for c in career_changes[:3]:
+            lines.append(f"  • {c.get('company_name')} - {c.get('role_title')}")
+        lines.append("")
 
-    top_three = urgent[:3] if urgent else rows[:3]
-    if top_three:
-        for index, row in enumerate(top_three, start=1):
-            lines.append(
-                f"{index}. {row.get('company_name', 'Unknown')} — "
-                f"{row.get('role_title', 'Open role')} — "
-                f"Score: {row.get('priority_score', 0)}"
-            )
-    else:
-        lines.append("No opportunities found in the last 24 hours.")
-
-    lines.extend(
-        [
-            "",
-            f"🏢 Career Pages Changed Today: {career_changes}",
-            f"📧 LinkedIn Alert Emails Parsed: {linkedin_alerts}",
-            f"🔍 Google Signals Found: {google_signals}",
-        ]
-    )
+    if companies_data:
+        lines.append("🔭 Top New Companies:")
+        for c in companies_data[:3]:
+            lines.append(f"  • {c.get('name')} (Score: {c.get('potential_score', 0)})")
+        lines.append("")
+        
+    if network_data:
+        lines.append("👤 Top Network Targets:")
+        for c in network_data[:3]:
+            company_str = f" at {c.get('company')}" if c.get('company') else ""
+            lines.append(f"  • {c.get('name')} - {c.get('title')[:30]}{company_str}")
+        lines.append("")
 
     if dashboard_url:
         lines.extend(["", f"Open Dashboard → {dashboard_url}"])
 
     send_telegram_message("\n".join(lines))
-    log_scraper_run(client, "send_daily_summary", "success", len(rows), None)
+    log_scraper_run(client, "send_daily_summary", "success", len(companies_data) + len(network_data), None)
     return 0
 
 

@@ -12,6 +12,9 @@ interface RecruiterProfile {
   location: string | null
   category: string | null
   discovered_at: string
+  contacted?: boolean
+  contact_date?: string | null
+  notes?: string | null
 }
 
 interface NetworkData {
@@ -89,6 +92,33 @@ export function NetworkGrowth() {
     await navigator.clipboard.writeText(msg)
     setCopyState((prev) => ({ ...prev, [profile.id]: true }))
     setTimeout(() => setCopyState((prev) => ({ ...prev, [profile.id]: false })), 2000)
+  }
+
+  async function handleToggleContacted(profile: RecruiterProfile) {
+    const newContacted = !profile.contacted
+    await fetch('/api/network', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: profile.id, contacted: newContacted })
+    })
+    setData(prev => {
+      if (!prev) return prev
+      const profiles = prev.profiles.map(p => p.id === profile.id ? { ...p, contacted: newContacted, contact_date: newContacted ? new Date().toISOString() : null } : p)
+      return { ...prev, profiles }
+    })
+  }
+
+  async function handleSaveNotes(profile: RecruiterProfile, notes: string) {
+    await fetch('/api/network', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: profile.id, notes })
+    })
+    setData(prev => {
+      if (!prev) return prev
+      const profiles = prev.profiles.map(p => p.id === profile.id ? { ...p, notes } : p)
+      return { ...prev, profiles }
+    })
   }
 
   const profiles = data?.profiles ?? []
@@ -205,7 +235,7 @@ export function NetworkGrowth() {
                 )}
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                   <a
                     href={profile.linkedin_url}
                     target="_blank"
@@ -232,7 +262,34 @@ export function NetworkGrowth() {
                   >
                     {isCopied ? '✓ Copied!' : '📋 Copy Message'}
                   </button>
+                  <button
+                    onClick={() => void handleToggleContacted(profile)}
+                    style={{
+                      background: profile.contacted ? '#eff6ff' : 'var(--bg-secondary)',
+                      color: profile.contacted ? '#2563eb' : 'var(--text-primary)',
+                      border: profile.contacted ? '1px solid #bfdbfe' : '1px solid var(--border)',
+                      borderRadius: '9999px', padding: '0.3rem 0.75rem',
+                      fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
+                    }}
+                  >
+                    {profile.contacted ? `✓ Contacted ${profile.contact_date ? new Date(profile.contact_date).toLocaleDateString() : ''}` : 'Mark Contacted'}
+                  </button>
                 </div>
+                
+                {/* Notes */}
+                <textarea
+                  placeholder="Add notes or follow-up reminder..."
+                  defaultValue={profile.notes ?? ''}
+                  onBlur={(e) => void handleSaveNotes(profile, e.target.value)}
+                  rows={1}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    fontSize: '0.75rem', padding: '0.4rem 0.6rem',
+                    border: '1px solid var(--border)', borderRadius: '0.5rem',
+                    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                    resize: 'vertical', fontFamily: 'inherit',
+                  }}
+                />
               </div>
             )
           })}

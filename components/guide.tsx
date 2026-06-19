@@ -8,12 +8,9 @@ import { CopyButton } from '@/components/copy-button';
 const SECTIONS = [
   { id: 'quick-start', label: '⚡ Quick Start' },
   { id: 'home', label: '🏠 Home Page' },
-  { id: 'opportunities', label: '💼 Opportunities' },
   { id: 'companies', label: '🏢 Companies' },
-  { id: 'proactive', label: '🎯 Proactive' },
-  { id: 'tracker', label: '📋 Tracker' },
+  { id: 'network', label: '🔗 Network' },
   { id: 'interview', label: '🧠 Interview' },
-  { id: 'discover', label: '🔭 Discover' },
   { id: 'routine', label: '📅 Daily Routine' },
   { id: 'automations', label: '⚙️ Automations' },
 ];
@@ -51,50 +48,30 @@ export function GuidePage() {
 
   const automations = [
     {
-      id: 'scrape_naukri.yml',
-      title: 'Naukri Scraper',
-      frequency: 'Every Day at 10:00 AM IST',
-      description: 'Scrapes Naukri for new jobs.',
-      source_filter: 'naukri',
-    },
-    {
-      id: 'scrape_google.yml',
-      title: 'Google & Career Pages',
-      frequency: 'Every Day at 11:00 AM IST',
-      description: 'Processes Career Pages and Google Searches.',
-      source_filter: 'google',
-    },
-    {
-      id: 'scrape_indeed.yml',
-      title: 'Indeed Scraper',
-      frequency: 'Every Day at 3:30 PM IST',
-      description: 'Scrapes Indeed for new jobs.',
-      source_filter: 'indeed',
-    },
-    {
-      id: 'scrape_wellfound.yml',
-      title: 'Wellfound Scraper',
-      frequency: 'Every Day at 9:00 PM IST',
-      description: 'Scrapes Wellfound for new jobs.',
-      source_filter: 'wellfound',
-    },
-    {
-      id: 'daily_summary.yml',
-      title: 'Daily Summary Report',
-      frequency: 'Every Day at 10:00 PM IST',
-      description: 'Sends the daily job digest to Telegram.',
-      source_filter: 'send_daily_summary',
-    },
-    {
       id: 'company_discovery.yml',
-      title: 'Weekly Company Discovery',
+      title: 'Company Discovery Scanner',
       frequency: 'Every Sunday 06:30 AM IST',
-      description: 'Discovers new AI startups in Ahmedabad/GIFT City and updates the companies table.',
+      description: 'Discovers new AI startups in Ahmedabad/GIFT City via LinkedIn and updates the intelligence database.',
+      source_filter: 'company_discovery',
+    },
+    {
+      id: 'network_growth.yml',
+      title: 'Network Growth Scraper',
+      frequency: 'Every Day at 09:00 AM IST',
+      description: 'Discovers new AI/ML recruiters and technical leaders (CTOs, Founders, Managers) at watchlist companies via LinkedIn X-Ray search.',
+      source_filter: 'network_growth',
+    },
+    {
+      id: 'career_page_watcher.yml',
+      title: 'Career Page Watcher',
+      frequency: 'Every Day at 09:00 AM IST',
+      description: 'Monitors the careers pages of companies in your Watchlist for changes.',
+      source_filter: 'career_page',
     }
   ];
 
   return (
-    <AppShell title="Success Guide" subtitle="A simple playbook to get the most out of HireSense">
+    <AppShell title="Success Guide" subtitle="A simple playbook to master AI/ML job hunting in Gujarat">
       <div className="guide-layout">
         
         {/* Sidebar / Tabs */}
@@ -117,26 +94,22 @@ export function GuidePage() {
             <div className="tab-pane">
               <Panel>
                 <h2>⚡ Quick Start Overview</h2>
-                <p>Welcome to your automated job radar. HireSense works for you 24/7. Here is what each section does to help you win:</p>
+                <p>Welcome to HireSense v2.0. We do not spray-and-pray applications on job boards. We build intelligence and network proactively. Here is how you win:</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                  <div className="feature-row"><strong>🏠 Home Page:</strong> Your daily dashboard. Tells you exactly what to do today.</div>
-                  <div className="feature-row"><strong>💼 Opportunities:</strong> The master list of all jobs scraped, automatically scored 0-100.</div>
-                  <div className="feature-row"><strong>🏢 Companies:</strong> Your watchlist. Monitor your favorite companies for new roles.</div>
-                  <div className="feature-row"><strong>🎯 Proactive:</strong> Find companies that just raised funding so you can message them <i>before</i> they post a job.</div>
-                  <div className="feature-row"><strong>📋 Tracker:</strong> A Kanban board to manage applications from "Applied" to "Offer".</div>
-                  <div className="feature-row"><strong>🧠 Interview:</strong> AI-powered prep. Generates custom interview questions based on the job description.</div>
-                  <div className="feature-row"><strong>🔭 Discover:</strong> Finds new hidden gem startups in your city.</div>
+                  <div className="feature-row"><strong>🏠 Home Page:</strong> Your daily brief. See new companies discovered and daily network tasks.</div>
+                  <div className="feature-row"><strong>🏢 Companies:</strong> Your database. Find companies, review their score, and jump straight to their LinkedIn pages.</div>
+                  <div className="feature-row"><strong>🔗 Network:</strong> Manage connections. Discover employees at target companies and track outreach.</div>
+                  <div className="feature-row"><strong>🧠 Interview:</strong> AI mock interviewer. Generates questions based on the job description.</div>
                 </div>
               </Panel>
               <Panel style={{ marginTop: '1rem', borderTop: '3px solid var(--accent)' }}>
                 <h3>🚀 Fast Track Setup</h3>
                 <ol style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)' }}>
-                  <li>Run the SQL script in Supabase.</li>
-                  <li>Add your API keys to GitHub Secrets.</li>
-                  <li>Deploy to Vercel.</li>
-                  <li>Set up LinkedIn & Google job alerts.</li>
+                  <li>Run the one-time LinkedIn URL backfill script.</li>
+                  <li>Review Discovered companies and move them to your Watchlist.</li>
+                  <li>Click <strong>💼 LinkedIn</strong> on target companies to find technical leaders.</li>
+                  <li>Connect and send personalized messages.</li>
                 </ol>
-                <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}><i>View background tasks in the ⚙️ Automations tab.</i></p>
               </Panel>
             </div>
           )}
@@ -144,116 +117,62 @@ export function GuidePage() {
           {activeSection === 'home' && (
             <Panel className="tab-pane">
               <h2>🏠 Home Page</h2>
-              <p>Your daily command center. Only look here to know what requires immediate action.</p>
+              <p>Your Daily Intel Brief. Only look here to know what requires immediate action today.</p>
               
               <div className="info-box urgent">
-                <strong>🔴 Apply Now (Score 70+):</strong> 
-                <p>These are the golden tickets. High relevance, fresh postings. Apply within 24 hours.</p>
+                <strong>📈 Pulse Stats:</strong> 
+                <p>Metrics showing new companies discovered this week and your 24h networking efforts.</p>
               </div>
               
               <div className="info-box normal">
-                <strong>🟡 Watching (Score 40-69):</strong> 
-                <p>Good matches. Review these when you have free time.</p>
+                <strong>⏰ Career Alerts:</strong> 
+                <p>Shows exactly which companies on your Watchlist have updated their career pages.</p>
               </div>
-              
-              <div className="info-box">
-                <strong>⏰ Follow-Ups Due:</strong> 
-                <p>Reminds you to email recruiters 3-5 days after applying. Never let an application go cold.</p>
-              </div>
-            </Panel>
-          )}
-
-          {activeSection === 'opportunities' && (
-            <Panel className="tab-pane">
-              <h2>💼 Opportunities</h2>
-              <p>The raw, unfiltered feed of every job your scrapers found.</p>
-              
-              <h3>How Scoring Works</h3>
-              <ul className="bullet-list">
-                <li><strong>70-100:</strong> Perfect match for your role in your target city.</li>
-                <li><strong>40-69:</strong> Generic roles or slightly older postings.</li>
-                <li><strong>0-39:</strong> Ignore. Mostly noise.</li>
-              </ul>
-              
-              <h3>Pro Tip: Best Sources</h3>
-              <p>Jobs scraped from <strong>Career Pages</strong> and <strong>Wellfound</strong> have higher response rates than generic LinkedIn Easy Applies.</p>
             </Panel>
           )}
 
           {activeSection === 'companies' && (
             <Panel className="tab-pane">
-              <h2>🏢 Companies Watchlist</h2>
-              <p>Don't wait for jobs to be posted on LinkedIn. Track the companies you actually want to work for.</p>
+              <h2>🏢 Company Intelligence</h2>
+              <p>LinkedIn Company URLs are the master key to finding jobs. We don't rely on job boards; we go straight to the source.</p>
               
-              <div className="info-box">
-                <strong>Why it matters:</strong> If you add a company's career page here, HireSense will scrape it daily and alert you the second a new role opens.
-              </div>
-              
+              <h3>My Watchlist vs Discovered</h3>
               <ul className="bullet-list">
-                <li>Manually add companies you see in the news.</li>
-                <li>Categorize them by tier (e.g., Tier 1 for dream companies).</li>
-                <li>Toggle "Watch" to enable daily scraping.</li>
+                <li><strong>Discovered Intelligence:</strong> Automated weekly scans find AI/ML startups in Gujarat. Review them here.</li>
+                <li><strong>My Watchlist:</strong> Move promising companies here. If they have a careers URL, the system watches it daily for you.</li>
               </ul>
+              
+              <h3>Pro Tip: The LinkedIn Button</h3>
+              <p>Every company card has a prominent <strong>💼 LinkedIn</strong> button. Clicking this instantly shows you the company size, open roles, and all employees.</p>
             </Panel>
           )}
 
-          {activeSection === 'proactive' && (
+          {activeSection === 'network' && (
             <div className="tab-pane">
               <Panel>
-                <h2>🎯 Proactive Outreach</h2>
-                <p>The secret to getting hired: message founders/HR <strong>after</strong> they get funding but <strong>before</strong> they post jobs.</p>
+                <h2>🔗 Network Intelligence</h2>
+                <p>Networking compounds. An application is just a lottery ticket, but a direct referral from an AI Engineer is an interview guarantee.</p>
                 <ul className="bullet-list">
-                  <li>HireSense highlights companies showing growth signals.</li>
-                  <li>Find the CTO or HR on LinkedIn and send a direct message.</li>
+                  <li>Go to a company's LinkedIn page.</li>
+                  <li>Click "People" and search for "AI", "Machine Learning", "CTO", or "Founder".</li>
+                  <li>Send a connection request with a targeted note.</li>
+                  <li>Log the connection in your Network tab to remember to follow up.</li>
                 </ul>
               </Panel>
               
               <Panel style={{ marginTop: '1rem' }}>
-                <h3>Message Template</h3>
+                <h3>Connection Note Template</h3>
                 <div className="code-box">
                   <pre>
 Hi [Name],
 
-Huge congrats on the recent [Funding/News]!
-
-I'm an AI/ML Engineer in Ahmedabad following [Company]'s work. Given your growth, are you open to connecting regarding upcoming roles in your team?
-
-Best,
-[Your Name]
-                  </pre>
-                  <CopyButton text={`Hi [Name],\n\nHuge congrats on the recent [Funding/News]!\n\nI'm an AI/ML Engineer in Ahmedabad following [Company]'s work. Given your growth, are you open to connecting regarding upcoming roles in your team?\n\nBest,\n[Your Name]`} />
-                </div>
-              </Panel>
-            </div>
-          )}
-
-          {activeSection === 'tracker' && (
-            <div className="tab-pane">
-              <Panel>
-                <h2>📋 Application Tracker</h2>
-                <p>If you don't track it, you lose it. Manage your funnel like a sales pipeline.</p>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-                  <span className="badge">New</span> ➔ 
-                  <span className="badge">Applied</span> ➔ 
-                  <span className="badge">Follow Up</span> ➔ 
-                  <span className="badge">Interview</span> ➔ 
-                  <span className="badge">Offer</span>
-                </div>
-                <p style={{ marginTop: '1rem' }}><strong>Rule of thumb:</strong> Always move an application to "Follow Up" and email them 3-5 days after applying.</p>
-              </Panel>
-              
-              <Panel style={{ marginTop: '1rem' }}>
-                <h3>Follow-up Template</h3>
-                <div className="code-box">
-                  <pre>
-Hi [Name],
-
-Following up on my application for the [Role] position from [Date]. I'm very interested in joining [Company] and would love to discuss how my background aligns with your needs.
+I'm an AI/ML Engineer in Ahmedabad following [Company]'s work in GenAI. 
+Would love to connect and learn more about the team's engineering culture.
 
 Best,
 [Your Name]
                   </pre>
-                  <CopyButton text={`Hi [Name],\n\nFollowing up on my application for the [Role] position from [Date]. I'm very interested in joining [Company] and would love to discuss how my background aligns with your needs.\n\nBest,\n[Your Name]`} />
+                  <CopyButton text={`Hi [Name],\n\nI'm an AI/ML Engineer in Ahmedabad following [Company]'s work in GenAI. \nWould love to connect and learn more about the team's engineering culture.\n\nBest,\n[Your Name]`} />
                 </div>
               </Panel>
             </div>
@@ -272,22 +191,6 @@ Best,
             </Panel>
           )}
 
-          {activeSection === 'discover' && (
-            <Panel className="tab-pane">
-              <h2>🔭 Company Discovery</h2>
-              <p>Find the hidden gems before everyone else does.</p>
-              
-              <div className="info-box">
-                <strong>How it works:</strong> HireSense searches the web for new startups in Ahmedabad and GIFT City that you haven't heard of yet.
-              </div>
-              
-              <ul className="bullet-list">
-                <li>Review the AI-generated list of potential targets weekly.</li>
-                <li>If they look promising, click to add them directly to your <strong>Companies Watchlist</strong>.</li>
-              </ul>
-            </Panel>
-          )}
-
           {activeSection === 'routine' && (
             <div className="tab-pane">
               <Panel>
@@ -296,33 +199,26 @@ Best,
                 
                 <div className="routine-grid">
                   <div className="routine-card">
-                    <h3>🌅 Morning (10 mins)</h3>
+                    <h3>🌅 Morning (5 mins)</h3>
                     <ul>
-                      <li>Check "Apply Now" (Home Page)</li>
-                      <li>Send Follow-Ups</li>
+                      <li>Check Home Page for Career Alerts</li>
+                      <li>Send 2-3 new LinkedIn connections</li>
                     </ul>
                   </div>
                   
                   <div className="routine-card">
-                    <h3>☀️ Midday (2 mins)</h3>
+                    <h3>☀️ Midday (5 mins)</h3>
                     <ul>
-                      <li>Quick glance at new email alerts</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="routine-card">
-                    <h3>🌙 Evening (3 mins)</h3>
-                    <ul>
-                      <li>Final check for urgent jobs</li>
+                      <li>Review any responses to outreach</li>
+                      <li>Send Follow-Ups to older connections</li>
                     </ul>
                   </div>
                   
                   <div className="routine-card highlight">
                     <h3>📅 Weekly (30 mins)</h3>
                     <ul>
-                      <li>Review Discover page</li>
-                      <li>Update Tracker statuses</li>
-                      <li>Send Proactive Outreach</li>
+                      <li>Review Discovered companies</li>
+                      <li>Update Watchlist tracking</li>
                     </ul>
                   </div>
                 </div>
@@ -332,7 +228,7 @@ Best,
               <Panel style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, color-mix(in srgb, var(--accent) 15%, var(--bg-card)) 100%)', border: '1px solid var(--accent)', marginTop: '1rem', textAlign: 'center' }}>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>Consistency is Key</h2>
                 <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Small daily actions create better opportunities. Don't binge-apply on weekends. Let the system work for you every single day.
+                  A daily habit of 10 minutes reviewing intel and messaging contacts creates a massive compounding advantage over applying endlessly on job boards.
                 </p>
               </Panel>
             </div>

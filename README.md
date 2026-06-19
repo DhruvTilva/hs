@@ -434,41 +434,22 @@ HireSense/
 
 ## Dashboard Pages
 
-### `/` — Today's Radar
+### `/` — Today's Intel Brief
+Fetches today's opportunities and calculates statistics. Shows pulse stats (New Companies, Total Tracked, New Contacts, Follow-ups Due), Quick Actions (Review Companies, Connect Today, Interview Prep, Success Guide), and Recent Career Page Changes.
 
-Fetches today's opportunities from `/api/opportunities?filter=today` and splits them into three sections by score:
+### `/companies` — Company Intelligence
+The central hub for managing all company data, split into two tabs:
+1. **Manual / Imported Watchlist**: Manage your core target list, toggle watchlist status, and track last career page changes.
+2. **Discovered Companies**: Triage newly discovered companies from the web scrapers. View scores, AI/ML signals, and instantly add them to your core watchlist or mark them as reached out.
 
-- **Urgent** — score 70 or above (red badge)
-- **Watching** — score 40–69 (amber badge)
-- **Normal** — score below 40 (collapsed by default)
+### `/network` — Network Intelligence
+Displays fresh, daily batches of highly targeted AI/ML recruiters, HR managers, and startup founders from Ahmedabad/Gujarat. Features one-click **Connect on LinkedIn** buttons and a pre-written outreach message generator to build your professional network. Tracks who you have already contacted.
 
-Each card shows: company, role title, score badge, source, location, time ago, **Apply** link, and **Mark Applied** button.
+### `/interview` — Interview Prep
+A built-in AI feature that researches interview experiences and generates a structured intelligence report using Gemini.
 
-### `/opportunities` — All Opportunities
-
-Filterable table with: source, score range, status, date preset (today / last 7 days), and a custom date-from / date-to range picker. The **Export CSV** link downloads the filtered rows as a CSV file. The **Reset Filters** button clears all filters at once.
-
-Columns: Date, Company, Role, Location, Source, Score, Status, Action (Apply + Mark Applied).
-
-### `/companies` — Company Watch List
-
-Shows all companies from the database sorted by `priority_base_score` descending. The **Watch / Unwatch** toggle sets `career_page_watched` via PATCH. The **Visit Careers** link opens the company's careers URL in a new tab.
-
-### `/proactive` — Proactive Outreach
-
-Two sections:
-
-1. **Companies to cold reach** — companies that have a proactive signal (Google Search / LinkedIn email / Google Alert) but no direct job posting in the last 14 days. Shows: signal reason, signal date, suggested contact title, a pre-written outreach message with a **Copy** button, a **Find Contact on LinkedIn** link, and a **Mark Reached Out** button.
-
-2. **Tier 5–6 companies with no recent opportunity** — companies in tier 5 or 6 that have no direct job signal in the last 14 days. Useful for cold-emailing startups before they post publicly.
-
-### `/network` — Network Growth
-
-Displays fresh, daily batches of highly targeted AI/ML recruiters, HR managers, and startup founders from Ahmedabad/Gujarat. Shows profile names, company, headline, and location. Features a one-click **Connect on LinkedIn** button and a pre-written outreach message generator to quickly build a high-quality professional network.
-
-### `/tracker` — Application Tracker
-
-Full pipeline view of all opportunities. Inline status dropdown (New → Applied → Followed Up → Interview → Offer / Rejected). Inline follow-up date picker. Inline notes textarea. All changes are saved immediately via PATCH.
+### `/guide` — Success Guide
+Strategic principles and step-by-step workflows on how to effectively use the HireSense platform to land an AI/ML job.
 
 ---
 
@@ -694,88 +675,64 @@ The feature degrades gracefully — if no search APIs are configured, Gemini gen
 
 ---
 
-## Company Discovery Setup — Run this SQL in Supabase
+## Database Setup — Supabase Updates (v2.0)
 
-Before using the `/discover` page, run the following SQL in your Supabase project (**SQL Editor → New query**):
+If you are upgrading or setting up for the first time with the v2.0 consolidated features, you must run the following SQL script in your Supabase project (**SQL Editor → New query**). 
+This creates the tables needed for the Company Discovery tabs and the enhanced Network Growth tracking.
 
 ```sql
-CREATE TABLE discovered_companies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- 1. Create the new Discovered Companies table
+CREATE TABLE IF NOT EXISTS discovered_companies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   location TEXT,
   website TEXT,
   linkedin_url TEXT,
   github_url TEXT,
-  founded_year INTEGER,
-  team_size TEXT,
-  funding_amount TEXT,
-  funding_stage TEXT,
-  investor_names TEXT,
-  founder_names TEXT,
-  founder_background TEXT,
-  ai_ml_signals TEXT,
-  source TEXT,
-  source_url TEXT,
-  news_mentions INTEGER DEFAULT 0,
   has_website BOOLEAN DEFAULT FALSE,
   has_linkedin BOOLEAN DEFAULT FALSE,
   has_github BOOLEAN DEFAULT FALSE,
   has_funding BOOLEAN DEFAULT FALSE,
   has_technical_founder BOOLEAN DEFAULT FALSE,
-  is_registered_pvt_ltd BOOLEAN DEFAULT FALSE,
-  government_grant BOOLEAN DEFAULT FALSE,
+  news_mentions INTEGER DEFAULT 0,
+  ai_ml_signals TEXT,
+  source TEXT,
+  source_url TEXT,
   potential_score INTEGER DEFAULT 0,
-  potential_tier TEXT,
+  potential_tier TEXT DEFAULT 'low',
   added_to_watchlist BOOLEAN DEFAULT FALSE,
   reached_out BOOLEAN DEFAULT FALSE,
-  reached_out_date DATE,
+  reached_out_date TIMESTAMPTZ,
   skip BOOLEAN DEFAULT FALSE,
   notes TEXT,
   raw_data JSONB,
-  discovered_at TIMESTAMP DEFAULT NOW(),
-  last_updated TIMESTAMP DEFAULT NOW()
+  discovered_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE UNIQUE INDEX discovered_companies_name_idx
-ON discovered_companies(LOWER(name));
+-- 2. Add new tracking columns to the existing recruiters table
+ALTER TABLE recruiters 
+ADD COLUMN IF NOT EXISTS contacted BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS contact_date TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS notes TEXT;
 
-CREATE TABLE recruiter_leads (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL,
-    linkedin_url TEXT NOT NULL,
-    company TEXT,
-    headline TEXT,
-    location TEXT,
-    category TEXT,
-    discovered_at TIMESTAMPTZ DEFAULT NOW()
+-- 3. Create a table to track scraper runs
+CREATE TABLE IF NOT EXISTS scraper_runs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  scraper_name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  records_processed INTEGER DEFAULT 0,
+  error_log TEXT,
+  run_date TIMESTAMPTZ DEFAULT now()
 );
-
 ```
 
 ### How to use Company Discovery
 
 1. **Run the SQL above** in Supabase to create the table.
-2. **Visit `/discover`** in your dashboard.
-3. Click **⚡ Run Now** to trigger the discovery scanner (or wait for the Sunday 6:30 AM IST auto-run).
+2. **Visit `/companies`** in your dashboard and click the **Discovered Companies** tab.
+3. Click **⚡ Run Discovery Scan** to trigger the discovery scanner (or wait for the auto-run).
 4. The scanner will search Google News, Startup India, and GIFT City for AI/ML companies in Ahmedabad/Gandhinagar.
 5. Each discovered company is scored (0–100) and filtered — only medium+ potential companies are saved.
-
-### How the Potential Score works
-
-| Signal | Points |
-|---|---|
-| Has funding | +30 |
-| LinkedIn present | +15 |
-| Real website | +15 |
-| Technical founder | +15 |
-| GitHub activity | +10 |
-| News mentions | +10 |
-| Team size 3+ | +10 |
-| Government grant | +5 |
-
-- **🔴 High Potential** (≥70): Apply/reach out immediately
-- **🟡 Monitor** (40–69): Track and reach out when timing is right
-- **🟢 Too Early** (<40): Watch but don't invest time yet
 
 ### Actions per company card
 
@@ -786,13 +743,4 @@ CREATE TABLE recruiter_leads (
 | 🔍 Find Contacts | Opens LinkedIn people search for the company |
 | ✓ Mark Reached Out | Records outreach date |
 | ✗ Skip | Hides the company from the list |
-
-### Optional: SerpAPI for richer results
-
-Add to `.env.local`:
-```env
-SERPAPI_KEY=your_serpapi_key
-```
-
-Without SerpAPI the scraper uses direct Google requests (best-effort, may be rate-limited).
 

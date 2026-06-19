@@ -326,14 +326,18 @@ export function CompanyDiscovery() {
 
                   {/* External links */}
                   <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                    {c.linkedin_url ? (
+                      <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ ...linkBtnStyle, background: '#0a66c2', color: '#fff', borderColor: '#0a66c2', fontWeight: 600 }}>
+                        💼 LinkedIn ←
+                      </a>
+                    ) : (
+                      <a href={`https://www.google.com/search?q=site:linkedin.com/company+"${c.name}"`} target="_blank" rel="noopener noreferrer" style={linkBtnStyle}>
+                        ❌ Find LinkedIn
+                      </a>
+                    )}
                     {c.website && (
                       <a href={c.website} target="_blank" rel="noopener noreferrer" style={linkBtnStyle}>
                         🌐 Website
-                      </a>
-                    )}
-                    {c.linkedin_url && (
-                      <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={linkBtnStyle}>
-                        💼 LinkedIn
                       </a>
                     )}
                     {c.github_url && (

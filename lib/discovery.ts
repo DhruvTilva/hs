@@ -5,7 +5,7 @@ export function calculatePotentialScore(company: Record<string, unknown>): numbe
   let score = 0
 
   if (company.has_funding)           score += 30
-  if (company.has_linkedin)          score += 15
+  if (company.has_linkedin)          score += 20
   if (company.has_website)           score += 15
   if (company.has_technical_founder) score += 15
   if (company.has_github)            score += 10
