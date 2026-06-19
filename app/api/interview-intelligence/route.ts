@@ -155,6 +155,7 @@ ${job_description || 'Not provided'}
 
 Based on this information, provide a structured interview intelligence report.
 Extract the absolute most valuable, hidden, or 'gold mine' secrets. Look for exact puzzle questions, unwritten rules, specific interviewers' favorite topics, or cheat codes to pass the interview.
+Also, deeply analyze the company's tech stack, business model, and the job description to predict 5-6 core questions that are virtually GUARANTEED to be asked. Provide simple, easy-to-understand cheat-sheet answers for each.
 
 ${noDataFound ? 'Since no specific data was found, base your response on general industry patterns for this role type and company type.' : ''}
 
@@ -163,6 +164,13 @@ Respond ONLY with valid JSON — no markdown, no code fences, no explanation. Th
 {
   "company_summary": "2-3 sentences about the company and their AI/tech focus",
   "gold_mine_secrets": ["Highly specific insider secret, exact puzzle, unwritten rule, or cheat code"],
+  "predicted_guaranteed_questions": [
+    {
+      "question": "The predicted high-probability question",
+      "simple_answer": "A quick, simple, easy-to-understand cheat-sheet answer",
+      "why_they_ask_this": "Why this specific company/role cares about this"
+    }
+  ],
   "interview_rounds": [
     {
       "round_number": 1,

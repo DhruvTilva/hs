@@ -23,9 +23,16 @@ export interface TopicToPrepare {
   reason: string;
 }
 
+export interface PredictedQuestion {
+  question: string;
+  simple_answer: string;
+  why_they_ask_this: string;
+}
+
 export interface InterviewIntelligence {
   company_summary: string;
   gold_mine_secrets?: string[];
+  predicted_guaranteed_questions?: PredictedQuestion[];
   interview_rounds: InterviewRound[];
   repeated_questions: RepeatedQuestion[];
   topics_to_prepare: TopicToPrepare[];
@@ -301,6 +308,31 @@ function TopicsCard({ topics }: { topics: TopicToPrepare[] }) {
   );
 }
 
+/* ── Card 4.5: Predicted Core Questions ──────────────────────── */
+function PredictedQuestionsCard({ questions }: { questions: PredictedQuestion[] }) {
+  if (!questions || questions.length === 0) return null;
+  return (
+    <Card style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
+      <SectionTitle>🔮 AI Predicted Core Questions</SectionTitle>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        {questions.map((q, i) => (
+          <div key={i} style={{ padding: '0.75rem', background: '#fff', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+              {q.question}
+            </p>
+            <p style={{ margin: '0 0 0.35rem', fontSize: '0.8rem', color: '#059669', fontWeight: 600, lineHeight: 1.4 }}>
+              💡 Answer: {q.simple_answer}
+            </p>
+            <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b', fontStyle: 'italic' }}>
+              Why they ask: {q.why_they_ask_this}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 /* ── Card 5: Tips ───────────────────────────────────────────── */
 function TipsCard({ tips }: { tips: string[] }) {
   return (
@@ -429,6 +461,7 @@ export function InterviewIntelligenceResult({ data }: { data: IntelligenceRespon
       {intel.interview_rounds?.length > 0 && <RoundsCard rounds={intel.interview_rounds} />}
       {intel.repeated_questions?.length > 0 && <QuestionsCard questions={intel.repeated_questions} />}
       {intel.topics_to_prepare?.length > 0 && <TopicsCard topics={intel.topics_to_prepare} />}
+      {intel.predicted_guaranteed_questions && intel.predicted_guaranteed_questions.length > 0 && <PredictedQuestionsCard questions={intel.predicted_guaranteed_questions} />}
       {intel.interview_tips?.length > 0 && <TipsCard tips={intel.interview_tips} />}
       {intel.smart_questions_to_ask?.length > 0 && <SmartQCard questions={intel.smart_questions_to_ask} />}
       {(intel.salary_signals || intel.red_flags?.length > 0) && (
