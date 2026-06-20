@@ -80,14 +80,12 @@ ROTATING_HEADERS = [
 AI_ML_KEYWORDS = [
     "artificial intelligence", "machine learning", "deep learning", "nlp",
     "natural language processing", "computer vision", "generative ai", "genai",
-    "llm", "large language model", "data science", "neural network", "ai-powered",
-    "ml model", "transformer", "chatbot", "automation", "robotics",
+    "llm", "large language model", "neural network", "ai-powered", "ml model",
 ]
 
 TECH_FOUNDER_SIGNALS = [
-    "engineer", "developer", "iit", "nit", "bits", "google", "microsoft",
-    "amazon", "phd", "ml", "ai", "data scientist", "researcher", "cto",
-    "chief technology", "founded", "co-founder",
+    "cto", "chief technology", "phd", "researcher", "data scientist",
+    "machine learning", "ml ", "ai ",
 ]
 
 NOISE_WORDS = {
@@ -373,16 +371,16 @@ def layer2_rss_feeds() -> list[dict[str, Any]]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 SERPER_LINKEDIN_QUERIES = [
-    'site:linkedin.com/company "artificial intelligence" "Ahmedabad"',
-    'site:linkedin.com/company "machine learning" "Ahmedabad"',
-    'site:linkedin.com/company "AI" "Gujarat"',
+    'site:linkedin.com/company "artificial intelligence" OR "machine learning" "Ahmedabad"',
+    'site:linkedin.com/company "generative ai" OR "llm" "Ahmedabad"',
+    'site:linkedin.com/company "artificial intelligence" OR "machine learning" "Gujarat"',
     'site:linkedin.com/company "GenAI" OR "LLM" "Gujarat"',
-    'site:linkedin.com/company "AI" "GIFT City"',
-    'site:linkedin.com/company "deep learning" "Ahmedabad"',
-    'site:linkedin.com/company "data science" "Ahmedabad"',
+    'site:linkedin.com/company "artificial intelligence" OR "machine learning" "GIFT City"',
+    'site:linkedin.com/company "deep learning" OR "neural network" "Ahmedabad"',
+    'site:linkedin.com/company "computer vision" OR "natural language processing" "Ahmedabad"',
     'site:linkedin.com/company "NLP" OR "computer vision" "Gujarat"',
     'site:linkedin.com/company "AI startup" "Ahmedabad" OR "Gandhinagar"',
-    'site:linkedin.com/company "ML" "fintech" "GIFT City"',
+    'site:linkedin.com/company "machine learning" "fintech" "GIFT City"',
 ]
 
 
@@ -532,10 +530,10 @@ def layer6_github_orgs() -> list[dict[str, Any]]:
     company_meta: dict[str, dict] = {}
 
     search_queries = [
-        "location:Ahmedabad language:Python",
-        "location:Ahmedabad+India language:Python",
-        "location:Gandhinagar language:Python",
-        "location:Gujarat language:Python",
+        "location:Ahmedabad machine learning",
+        "location:Ahmedabad artificial intelligence",
+        "location:Ahmedabad deep learning",
+        "location:Ahmedabad llm",
     ]
 
     for q in search_queries:
@@ -841,19 +839,8 @@ def verify_company_smart(company: dict[str, Any]) -> dict[str, Any]:
         "multi_dev_verified":    company.get("multi_dev_verified", False),
     }
 
-    # Website check: direct HTTP GET (free, zero quota)
-    if not result["has_website"] and not result["website_url"]:
-        name_slug = re.sub(r"[^a-z0-9]", "", company["name"].lower())
-        for candidate in [f"https://www.{name_slug}.com", f"https://www.{name_slug}.in", f"https://www.{name_slug}.ai"]:
-            try:
-                resp = requests.head(candidate, timeout=5, allow_redirects=True)
-                if resp.status_code < 400:
-                    result["has_website"]  = True
-                    result["website_url"] = candidate
-                    break
-            except Exception:
-                pass
-            time.sleep(0.3)
+    # Website check is disabled for domain guessing to prevent dangerous false positives.
+    # We only trust websites provided by the source.
 
     # GitHub org check: free GitHub API
     if not result["has_github"]:
@@ -868,9 +855,12 @@ def verify_company_smart(company: dict[str, Any]) -> dict[str, Any]:
             if r.status_code == 200:
                 items = r.json().get("items", [])
                 if items:
-                    owner = items[0].get("owner", {}).get("login", "")
+                    owner = items[0].get("owner", {})
+                    owner_login = owner.get("login", "")
+                    owner_type = owner.get("type", "")
                     org_name = re.sub(r"\s+", "", company["name"]).lower()
-                    if org_name in owner.lower() or owner.lower() in org_name:
+                    # strictly verify it's an Organization, not a personal user repo
+                    if owner_type == "Organization" and (org_name in owner_login.lower() or owner_login.lower() in org_name):
                         result["has_github"]  = True
                         result["github_url"] = items[0].get("html_url")
         except Exception:
@@ -936,13 +926,13 @@ def calculate_score(company: dict[str, Any]) -> int:
 
     # Core signals
     if company.get("has_funding"):           score += 30
-    if company.get("govt_verified"):         score += 20
-    if company.get("has_linkedin"):          score += 15
-    if company.get("has_website"):           score += 15
-    if company.get("has_technical_founder"): score += 10
+    if company.get("govt_verified"):         score += 15
+    if company.get("has_linkedin"):          score += 10
+    if company.get("has_website"):           score += 5
+    if company.get("has_technical_founder"): score += 15
     if company.get("has_github"):            score += 10
     if company.get("news_mentions", 0) > 0:  score += 10
-    if company.get("ai_ml_signals"):         score +=  5
+    if company.get("ai_ml_signals"):         score += 40
 
     # ── Multi-Source Confidence Bonuses (NEW) ──
     source_count = company.get("source_count", 1)
