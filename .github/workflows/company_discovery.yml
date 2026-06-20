@@ -23,10 +23,12 @@ jobs:
 
       - name: Run Company Discovery Scraper
         env:
-          SUPABASE_URL:             ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:             ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          TELEGRAM_BOT_TOKEN:       ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:         ${{ secrets.TELEGRAM_CHAT_ID }}
-          SERPER_KEY:               ${{ secrets.SERPER_KEY }}
+          TELEGRAM_BOT_TOKEN:        ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:          ${{ secrets.TELEGRAM_CHAT_ID }}
+          SERPER_KEY:                ${{ secrets.SERPER_KEY }}
+          GEMINI_API_KEY:            ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN:              ${{ secrets.GITHUB_TOKEN }}
         run: python scrapers/company_discovery.py
