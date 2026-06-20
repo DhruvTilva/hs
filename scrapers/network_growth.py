@@ -52,13 +52,24 @@ SERPER_KEY_2  = os.getenv("SERPER_3_NETWORK_KEY", "")   # Second Serper.dev key 
 
 # ── Search Queries ────────────────────────────────────────────────────────────
 
-NETWORK_QUERIES = [
-    'site:linkedin.com/in/ "hiring" "AI" OR "Machine Learning" "Ahmedabad"',
-    'site:linkedin.com/in/ "Talent Acquisition" "AI" "Gujarat"',
-    'site:linkedin.com/in/ "CTO" OR "Founder" "AI startup" "Ahmedabad"',
-    'site:linkedin.com/in/ "Engineering Manager" "Machine Learning" "GIFT City"',
-    'site:linkedin.com/in/ "HR" "Artificial Intelligence" "Gandhinagar"',
+HEADLINE_HIRING_KEYWORDS = [
+    "hiring", "recruiter", "recruitment", "talent acquisition",
+    "staffing", "hr ", "human resources", "people operations",
+    "looking for", "we are hiring", "join our team", "open position",
+    "openings", "vacancy", "headhunter",
+    "engineering manager", "cto", "vp ", "head of", "founder",
+    "co-founder", "tech lead", "director", "chief technology",
 ]
+
+HEADLINE_AI_ML_KEYWORDS = [
+    "ai", "ml", "artificial intelligence", "machine learning",
+    "deep learning", "data scientist", "data science",
+    "genai", "gen ai", "generative ai", "llm", "large language",
+    "nlp", "natural language", "computer vision",
+    "mlops", "ai engineer", "ml engineer", "ai/ml",
+]
+
+ALLOWED_LOCATIONS = ["ahmedabad", "gandhinagar", "gift city", "gujarat", "remote"]
 
 # ── Search Engines ────────────────────────────────────────────────────────────
 
@@ -152,7 +163,7 @@ def _duckduckgo_search(query: str, num: int = 10) -> list[dict]:
         return []
 
 
-def smart_search(query: str, num: int = 5) -> tuple[list[dict], str]:
+def smart_search(query: str, num: int = 20) -> tuple[list[dict], str]:
     """
     3-Engine Cascading Search — tries each engine in quality order.
     Returns (results, engine_name) so we can log which engine was used.
@@ -177,13 +188,22 @@ def smart_search(query: str, num: int = 5) -> tuple[list[dict], str]:
 
 # ── Profile Extraction ────────────────────────────────────────────────────────
 
-def determine_category(title: str, snippet: str) -> str:
+def determine_category(title: str, snippet: str) -> str | None:
     combined = (title + " " + snippet).lower()
-    if any(k in combined for k in ["founder", "cto", "chief technology", "co-founder"]):
+    
+    decision_makers = ["founder", "co-founder", "cto", "chief technology", "vp ", "head of", "director"]
+    if any(k in combined for k in decision_makers):
         return "founder"
-    if any(k in combined for k in ["manager", "director", "head of engineering", "vp"]):
+        
+    recruiting = ["hr ", "human resources", "recruiter", "talent acquisition", "headhunter", "staffing", "people operations"]
+    if any(k in combined for k in recruiting):
+        return "ai_ml_recruiter"
+        
+    managers = ["engineering manager", "tech lead", "manager", "hiring"]
+    if any(k in combined for k in managers):
         return "hiring_manager"
-    return "ai_ml_recruiter"
+        
+    return None
 
 
 def extract_name(title: str) -> str:
@@ -227,12 +247,25 @@ def main():
         except Exception:
             pass
 
+    # Randomize watchlist so we don't query the exact same 10 companies every day
+    random.shuffle(watchlist)
+    
     company_queries = []
-    for c in watchlist:
-        company_queries.append(f'site:linkedin.com/in/ "{c["name"]}" "hiring" ("AI" OR "ML" OR "Engineering")')
+    for c in watchlist[:10]:
+        hr_kw = random.choice(HEADLINE_HIRING_KEYWORDS)
+        ai_kw = random.choice(HEADLINE_AI_ML_KEYWORDS)
+        company_queries.append(f'site:linkedin.com/in/ "{c["name"]}" "{hr_kw}" "{ai_kw}"')
 
-    all_queries = NETWORK_QUERIES + company_queries[:10]  # limit to top 10 companies to save quota
-    print(f"[network] Running {len(all_queries)} queries...\n")
+    # Combinatorial Query Generator for generic location-based searches
+    random_queries = []
+    for _ in range(10):
+        hr_kw = random.choice(HEADLINE_HIRING_KEYWORDS)
+        ai_kw = random.choice(HEADLINE_AI_ML_KEYWORDS)
+        loc = random.choice(ALLOWED_LOCATIONS)
+        random_queries.append(f'site:linkedin.com/in/ "{hr_kw}" "{ai_kw}" "{loc}"')
+
+    all_queries = random_queries + company_queries
+    print(f"[network] Running {len(all_queries)} dynamic queries...\n")
 
     discovered = []
     seen_urls = set()
@@ -240,7 +273,7 @@ def main():
     for i, query in enumerate(all_queries, 1):
         print(f"[{i}/{len(all_queries)}] {query[:70]}...")
         try:
-            results, engine = smart_search(query, num=5)
+            results, engine = smart_search(query, num=20)
             engine_usage[engine] = engine_usage.get(engine, 0) + 1
             print(f"  -> {len(results)} results via {engine}")
 
@@ -255,6 +288,8 @@ def main():
                     continue
 
                 category = determine_category(r["title"], r["snippet"])
+                if category is None:
+                    continue  # Strict filtering: Discard irrelevant profiles
                 company = extract_company(r["snippet"])
 
                 discovered.append({
