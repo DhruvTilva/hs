@@ -35,16 +35,12 @@ export default async function Home() {
       .gte('created_at', sevenDaysAgo);
     stats.newCompaniesThisWeek = newCompanies || 0;
 
-    // 3. New contacts today
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    // Note: recruiters table might not have created_at currently. Let's fallback to opportunities for now if needed, 
-    // or just assume we have discovered_at / created_at. We will query 'recruiters' but handle errors if column doesn't exist.
-    const { count: newContacts, error: errContacts } = await supabase
-      .from('recruiters')
-      .select('*', { count: 'exact', head: true });
-      // .gte('created_at', startOfToday.toISOString()); // Will add back after schema update
-    stats.newContactsToday = newContacts || 0; // Temporary placeholder for 'all time' until schema is updated
+    // 3. New contacts today (Network Growth runs)
+    const { count: networkGrowthRuns } = await supabase
+      .from('scraper_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('source', 'network_growth');
+    stats.newContactsToday = networkGrowthRuns || 0;
 
     // 4. Career page changes (opportunities from career_page in last 7 days)
     const { data: careerChanges } = await supabase
@@ -90,7 +86,7 @@ export default async function Home() {
               labelColor="var(--accent)"
             />
             <Metric
-              label="New Contacts (24h)"
+              label={`New Contacts (Ran ${stats.newContactsToday})`}
               value={stats.newContactsToday}
               accentClass="metric-watching"
               labelColor="var(--watching)"

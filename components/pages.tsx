@@ -35,7 +35,16 @@ import { parseCsv, validateRow, mapRowToCompany, deduplicateRows, extractSheetId
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  if (!response.ok) {
+    let msg = `Request failed: ${response.status}`;
+    try {
+      const errData = await response.json();
+      if (errData && errData.error) msg = errData.error;
+    } catch {
+      // ignore json parse error on non-ok responses
+    }
+    throw new Error(msg);
+  }
   return response.json() as Promise<T>;
 }
 

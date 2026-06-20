@@ -43,7 +43,7 @@ export async function PATCH(req: Request) {
           career_page_watched: false,
           notes: 'Auto-discovered by HireSense',
         },
-        { onConflict: 'name', ignoreDuplicates: false },
+        { onConflict: 'name', ignoreDuplicates: true },
       )
     }
   }
