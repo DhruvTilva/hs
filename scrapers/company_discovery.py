@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 # ── Config / Keys ─────────────────────────────────────────────────────────────
 
-SERPER_KEY   = os.getenv("SERPER_KEY", "")        # serper.dev — 2,500 free searches, no card!
+SERPER_KEY   = os.getenv("SERPER_1_DISCOVERY_KEY", "")        # serper.dev — 2,500 free searches, no card!
 GEMINI_KEY   = os.getenv("GEMINI_API_KEY", "")    # Gemini Flash — 1M tokens/day free
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")      # Your existing GitHub PAT — 5,000 req/hr
 
