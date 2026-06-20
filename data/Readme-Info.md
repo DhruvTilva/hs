@@ -612,3 +612,41 @@ CREATE TABLE IF NOT EXISTS scraper_logs (
 **GitHub Action fails immediately**
 - Expand the failed step in Actions logs to read the Python traceback.
 - Most common cause: missing or misnamed secret. Check **Settings → Secrets** on GitHub.
+
+
+
+
+
+# HireSense API Key Expansion Guide
+
+If you ever need to scale up your `network_growth.py` script by adding a third (or fourth) Serper.dev API key, follow these simple steps to plug it into the cascading engine.
+
+## How to add a new Serper API Key Fallback
+
+You will need to make changes in **3 specific places** inside `scrapers/network_growth.py`.
+
+### 1. Load the Environment Variable (Near line 50)
+Add your new variable next to the existing `SERPER_KEY` variables:
+```python
+SERPER_KEY    = os.getenv("SERPER_2_NETWORK_KEY", "")   
+SERPER_KEY_2  = os.getenv("SERPER_3_NETWORK_KEY", "")
+SERPER_KEY_3  = os.getenv("SERPER_4_NEW_KEY", "")  # <-- ADD THIS LINE
+```
+
+### 2. Add it to the Cascade List (Inside `_serper_search`)
+The function automatically tries every key in this list until one works. You just need to add the new key (`SERPER_KEY_3`) to the array:
+```python
+def _serper_search(query: str, num: int = 10) -> list[dict]:
+    # ADD SERPER_KEY_3 TO THIS ARRAY:
+    keys_to_try = [k for k in [SERPER_KEY, SERPER_KEY_2, SERPER_KEY_3] if k] 
+```
+
+### 3. Update the Console Log (Inside `main()`)
+This is purely cosmetic, just so the console correctly prints "Serper.dev (3 keys)" when the script boots up:
+```python
+    if SERPER_KEY or SERPER_KEY_2 or SERPER_KEY_3: 
+        engines_available.append(f"Serper.dev ({sum(1 for k in [SERPER_KEY, SERPER_KEY_2, SERPER_KEY_3] if k)} keys)")
+```
+
+### 4. Update your Secrets
+Don't forget to actually add `SERPER_4_NEW_KEY=your_api_key_here` into your local `.env` file and into your GitHub Actions Secrets repository so the script can access it!
