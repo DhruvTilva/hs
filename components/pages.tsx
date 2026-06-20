@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 import { AppShell } from '@/components/app-shell';
 import { CompanyDiscovery } from '@/components/company-discovery';
@@ -376,11 +376,10 @@ export function CompaniesPage() {
           <>
             <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpenPopover(null)} />
             <div
+              className="filter-popover"
               style={{
-                position: 'absolute', top: '100%', left: 0, marginTop: '0.25rem', zIndex: 20,
-                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '0.5rem',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '0.75rem', minWidth: '12rem',
-                textTransform: 'none', letterSpacing: 'normal', fontWeight: 'normal', color: 'var(--text-primary)'
+                top: '100%',
+                padding: '0.75rem',
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -407,6 +406,144 @@ export function CompaniesPage() {
       </th>
     );
   }
+
+  function MobileFilterButton({ column, label, sortable, filterNode }: { column: string, label: string, sortable?: boolean, filterNode?: React.ReactNode }) {
+    const isOpen = openPopover === column;
+    const isFilteredCol = (column === 'company' && filters.company) ||
+      (column === 'tier' && filters.tier.length > 0) ||
+      (column === 'location' && filters.location.length > 0) ||
+      (column === 'watched' && filters.watched !== 'all');
+
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setOpenPopover(isOpen ? null : column)}
+          style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem', 
+            borderRadius: '9999px', border: isFilteredCol ? '1px solid var(--accent)' : '1px solid var(--border)',
+            background: isFilteredCol ? 'var(--badge-normal-bg)' : 'var(--bg-card)', 
+            color: isFilteredCol ? 'var(--accent)' : 'var(--text-secondary)',
+            padding: '0.35rem 0.85rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {label}
+          {sort.key === column && (
+            <span style={{ fontSize: '0.7rem' }}>
+              {sort.direction === 'asc' ? '▲' : '▼'}
+            </span>
+          )}
+          {(sortable || filterNode) && sort.key !== column && <span style={{ opacity: 0.5, fontSize: '0.6rem' }}>▼</span>}
+        </button>
+        {isOpen && (sortable || filterNode) && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setOpenPopover(null)} />
+            <div
+              className="filter-popover"
+              style={{
+                top: '100%',
+                padding: '0.75rem',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {sortable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: filterNode ? '0.75rem' : 0, paddingBottom: filterNode ? '0.75rem' : 0, borderBottom: filterNode ? '1px solid var(--border)' : 'none' }}>
+                  <button
+                    onClick={() => { setSort({ key: column, direction: 'asc' }); setOpenPopover(null); }}
+                    style={{ background: sort.key === column && sort.direction === 'asc' ? 'var(--bg-secondary)' : 'transparent', border: 'none', padding: '0.4rem 0.5rem', textAlign: 'left', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                  >
+                    ↑ Sort {column === 'score' ? 'Low → High' : (column === 'watched' ? 'Ascending' : 'A → Z')}
+                  </button>
+                  <button
+                    onClick={() => { setSort({ key: column, direction: 'desc' }); setOpenPopover(null); }}
+                    style={{ background: sort.key === column && sort.direction === 'desc' ? 'var(--bg-secondary)' : 'transparent', border: 'none', padding: '0.4rem 0.5rem', textAlign: 'left', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+                  >
+                    ↓ Sort {column === 'score' ? 'High → Low' : (column === 'watched' ? 'Descending' : 'Z → A')}
+                  </button>
+                </div>
+              )}
+              {filterNode}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function CompanyFilterInput() {
+    const inputRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    }, []);
+
+    return (
+      <input
+        ref={inputRef}
+        placeholder="Filter by name..."
+        value={filters.company}
+        onChange={(e) => setFilters(prev => ({ ...prev, company: e.target.value }))}
+        style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '0.25rem', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+      />
+    );
+  }
+
+  const companyFilterNode = (
+    <div>
+      <CompanyFilterInput />
+    </div>
+  );
+
+  const tierFilterNode = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
+      {uniqueTiers.map(t => (
+        <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={filters.tier.includes(t)}
+            onChange={(e) => {
+              if (e.target.checked) setFilters(prev => ({ ...prev, tier: [...prev.tier, t] }));
+              else setFilters(prev => ({ ...prev, tier: prev.tier.filter(x => x !== t) }));
+            }}
+          />
+          Tier {t}
+        </label>
+      ))}
+    </div>
+  );
+
+  const locationFilterNode = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
+      {uniqueLocations.map(l => (
+        <label key={l} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={filters.location.includes(l)}
+            onChange={(e) => {
+              if (e.target.checked) setFilters(prev => ({ ...prev, location: [...prev.location, l] }));
+              else setFilters(prev => ({ ...prev, location: prev.location.filter(x => x !== l) }));
+            }}
+          />
+          {l}
+        </label>
+      ))}
+    </div>
+  );
+
+  const watchedFilterNode = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+      {['all', 'yes', 'no'].map(opt => (
+        <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer', textTransform: 'capitalize' }}>
+          <input
+            type="radio"
+            name="watched_filter"
+            checked={filters.watched === opt}
+            onChange={() => setFilters(prev => ({ ...prev, watched: opt as any }))}
+          />
+          {opt}
+        </label>
+      ))}
+    </div>
+  );
 
   return (
     <AppShell title="Company Intelligence" subtitle="Curated set of targets and watch flags">
@@ -474,7 +611,7 @@ export function CompaniesPage() {
 
               {showForm && (
                 <form onSubmit={(e) => void handleSaveCompany(e)}>
-                  <div style={{ ...formGrid }} className="add-company-grid">
+                  <div className="add-company-grid">
                     <div>
                       <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Company Name *</label>
                       <input required className={inputCls} value={form.name} onChange={field('name')} placeholder="e.g. Pirimid Fintech" />
@@ -607,84 +744,16 @@ export function CompaniesPage() {
                       </button>
                     </div>
                   )}
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="desktop-view" style={{ overflowX: 'auto' }}>
                     <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
                           <th style={TH_STYLE}>#</th>
-                          <ColumnHeader
-                            column="company" label="COMPANY" sortable
-                            filterNode={
-                              <div>
-                                <input
-                                  autoFocus
-                                  placeholder="Filter by name..."
-                                  value={filters.company}
-                                  onChange={(e) => setFilters(prev => ({ ...prev, company: e.target.value }))}
-                                  style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '0.25rem', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
-                                />
-                              </div>
-                            }
-                          />
-                          <ColumnHeader
-                            column="tier" label="TIER" sortable
-                            filterNode={
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
-                                {uniqueTiers.map(t => (
-                                  <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={filters.tier.includes(t)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) setFilters(prev => ({ ...prev, tier: [...prev.tier, t] }));
-                                        else setFilters(prev => ({ ...prev, tier: prev.tier.filter(x => x !== t) }));
-                                      }}
-                                    />
-                                    Tier {t}
-                                  </label>
-                                ))}
-                              </div>
-                            }
-                          />
-                          <ColumnHeader
-                            column="location" label="LOCATION" sortable
-                            filterNode={
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '12rem', overflowY: 'auto' }}>
-                                {uniqueLocations.map(l => (
-                                  <label key={l} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={filters.location.includes(l)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) setFilters(prev => ({ ...prev, location: [...prev.location, l] }));
-                                        else setFilters(prev => ({ ...prev, location: prev.location.filter(x => x !== l) }));
-                                      }}
-                                    />
-                                    {l}
-                                  </label>
-                                ))}
-                              </div>
-                            }
-                          />
+                          <ColumnHeader column="company" label="COMPANY" sortable filterNode={companyFilterNode} />
+                          <ColumnHeader column="tier" label="TIER" sortable filterNode={tierFilterNode} />
+                          <ColumnHeader column="location" label="LOCATION" sortable filterNode={locationFilterNode} />
                           <ColumnHeader column="score" label="SCORE" sortable />
-                          <ColumnHeader
-                            column="watched" label="WATCHED" sortable
-                            filterNode={
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                {['all', 'yes', 'no'].map(opt => (
-                                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer', textTransform: 'capitalize' }}>
-                                    <input
-                                      type="radio"
-                                      name="watched_filter"
-                                      checked={filters.watched === opt}
-                                      onChange={() => setFilters(prev => ({ ...prev, watched: opt as any }))}
-                                    />
-                                    {opt}
-                                  </label>
-                                ))}
-                              </div>
-                            }
-                          />
+                          <ColumnHeader column="watched" label="WATCHED" sortable filterNode={watchedFilterNode} />
                           <th style={TH_STYLE}>ACTION</th>
                         </tr>
                       </thead>
@@ -702,13 +771,13 @@ export function CompaniesPage() {
                               </span>
                             </td>
                             <td style={TD_STYLE}>
-                              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '0.4rem', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '0.75rem', alignItems: 'center' }}>
                                 {company.careers_url ? (
                                   <a href={company.careers_url} target="_blank" rel="noopener noreferrer" style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     borderRadius: '0.35rem', border: '1px solid var(--border)',
                                     backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
-                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    minWidth: '44px', minHeight: '44px', fontSize: '1rem',
                                     cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
                                   }} title="Visit Careers">
                                     💼
@@ -718,7 +787,7 @@ export function CompaniesPage() {
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     borderRadius: '0.35rem', border: '1px solid transparent',
                                     backgroundColor: 'transparent', color: 'var(--text-muted)',
-                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    minWidth: '44px', minHeight: '44px', fontSize: '1rem',
                                     opacity: 0.4, cursor: 'not-allowed'
                                   }} title="No Careers URL">
                                     💼
@@ -730,7 +799,7 @@ export function CompaniesPage() {
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     borderRadius: '0.35rem', border: '1px solid var(--border)',
                                     backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
-                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    minWidth: '44px', minHeight: '44px', fontSize: '1rem',
                                     cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
                                   }} title="Visit LinkedIn">
                                     🔗
@@ -740,7 +809,7 @@ export function CompaniesPage() {
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                     borderRadius: '0.35rem', border: '1px solid transparent',
                                     backgroundColor: 'transparent', color: 'var(--text-muted)',
-                                    padding: '0.35rem', fontSize: '0.85rem',
+                                    minWidth: '44px', minHeight: '44px', fontSize: '1rem',
                                     opacity: 0.4, cursor: 'not-allowed'
                                   }} title="No LinkedIn URL">
                                     🔗
@@ -753,9 +822,6 @@ export function CompaniesPage() {
                                   onClick={() => void toggleWatch(company)}
                                   style={{
                                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    borderRadius: '0.35rem', border: company.career_page_watched ? '1px solid var(--accent)' : '1px solid var(--border)',
-                                    backgroundColor: company.career_page_watched ? 'var(--accent)' : 'var(--bg-primary)',
-                                    color: company.career_page_watched ? '#fff' : 'var(--text-secondary)',
                                     padding: '0.35rem', fontSize: '0.85rem',
                                     cursor: watchingId === company.id ? 'not-allowed' : 'pointer',
                                     transition: 'all 0.15s'
@@ -769,6 +835,93 @@ export function CompaniesPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* MOBILE FILTERS BAR */}
+                  <div className="mobile-view" style={{ display: 'flex', flexDirection: 'row', overflowX: 'auto', gap: '0.5rem', paddingBottom: '0.5rem', marginBottom: '0.5rem', scrollbarWidth: 'none' }}>
+                    <MobileFilterButton column="company" label="Company" sortable filterNode={companyFilterNode} />
+                    <MobileFilterButton column="tier" label="Tier" sortable filterNode={tierFilterNode} />
+                    <MobileFilterButton column="location" label="Location" sortable filterNode={locationFilterNode} />
+                    <MobileFilterButton column="score" label="Score" sortable />
+                    <MobileFilterButton column="watched" label="Watched" sortable filterNode={watchedFilterNode} />
+                  </div>
+
+                  {/* MOBILE CARDS VIEW */}
+                  <div className="mobile-view">
+                    {filteredAndSortedCompanies.map((company, idx) => (
+                      <div key={company.id} className="mobile-company-card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1.05rem', lineHeight: 1.2 }}>
+                            {company.name}
+                          </div>
+                          <ScoreBadge score={company.last_signal_score ?? company.priority_base_score ?? 0} />
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, background: 'var(--bg-secondary)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>
+                            {company.tier ? `Tier ${company.tier}` : 'No Tier'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {company.location ?? 'No Location'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', marginLeft: 'auto', fontWeight: 600, color: company.career_page_watched ? 'var(--normal)' : 'var(--text-muted)' }}>
+                            {company.career_page_watched ? 'Watching' : 'Not Watched'}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '0.75rem', alignItems: 'center', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                          {company.careers_url ? (
+                            <a href={company.careers_url} target="_blank" rel="noopener noreferrer" style={{
+                              display: 'inline-flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '0.35rem', border: '1px solid var(--border)',
+                              backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
+                              minWidth: '44px', minHeight: '44px', fontSize: '1rem',
+                              cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
+                            }}>💼 Careers</a>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '0.35rem', border: '1px solid transparent',
+                              backgroundColor: 'transparent', color: 'var(--text-muted)',
+                              minWidth: '44px', minHeight: '44px', fontSize: '1rem',
+                              opacity: 0.4, cursor: 'not-allowed'
+                            }}>💼 Careers</span>
+                          )}
+
+                          {company.linkedin_url ? (
+                            <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer" style={{
+                              display: 'inline-flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '0.35rem', border: '1px solid var(--border)',
+                              backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)',
+                              minWidth: '44px', minHeight: '44px', fontSize: '1rem',
+                              cursor: 'pointer', transition: 'all 0.15s', textDecoration: 'none'
+                            }}>🔗 LinkedIn</a>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '0.35rem', border: '1px solid transparent',
+                              backgroundColor: 'transparent', color: 'var(--text-muted)',
+                              minWidth: '44px', minHeight: '44px', fontSize: '1rem',
+                              opacity: 0.4, cursor: 'not-allowed'
+                            }}>🔗 LinkedIn</span>
+                          )}
+
+                          <button
+                            onClick={() => void toggleWatch(company)}
+                            style={{
+                              display: 'inline-flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+                              borderRadius: '0.35rem', border: '1px solid var(--border)',
+                              backgroundColor: company.career_page_watched ? 'var(--badge-normal-bg)' : 'var(--bg-primary)',
+                              color: company.career_page_watched ? 'var(--normal)' : 'var(--text-primary)',
+                              minWidth: '44px', minHeight: '44px', fontSize: '1rem', fontWeight: 600,
+                              cursor: 'pointer', transition: 'all 0.15s'
+                            }}
+                          >
+                            {company.career_page_watched ? '👁️ Unwatch' : '👁️‍🗨️ Watch'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}
