@@ -1,6 +1,6 @@
 Personal AI/ML Company Intelligence & Networking Radar for Ahmedabad, Gandhinagar, and GIFT City.
 
-Discovers hidden AI/ML startups through a **5-layer multi-source intelligence pipeline**, watches their career pages, tracks AI/ML recruiters via LinkedIn X-Ray, and prepares you for every interview. A Next.js dashboard lets you browse, filter, trigger automations, and manage everything from your browser.
+Discovers hidden AI/ML startups through an **11-layer multi-source intelligence pipeline**, watches their career pages, tracks AI/ML recruiters via LinkedIn X-Ray, and prepares you for every interview. A Next.js dashboard lets you browse, filter, trigger automations, and manage everything from your browser.
 
 ---
 
@@ -40,14 +40,20 @@ Python Scrapers ──► Supabase PostgreSQL ◄── Next.js API Routes
   Layer 1: Startup India API                    │
   Layer 2: RSS Feeds (YourStory, Inc42)         ▼
   Layer 3: Serper.dev LinkedIn X-Ray    Browser / Mobile
-  Layer 4: Clutch.co + NASSCOM          (Companies, Network,
+  Layer 4: GoodFirms / TechBehemoths    (Companies, Network,
   Layer 5: i-Hub Gujarat                 Interview, Guide)
+  Layer 6: GitHub Orgs X-Ray
+  Layer 7: Incubator Portfolios
+  Layer 8: HackerNews Who's Hiring
+  Layer 9: HuggingFace Publishers
+  Layer 10: Naukri Active Jobs
+  Layer 11: News Intelligence
         │
         ▼
   Telegram Bot (optional alerts)
 ```
 
-- **5-Layer Company Discovery** runs without relying on any single paid API. Most sources are completely free and unlimited.
+- **11-Layer Company Discovery** runs without relying on any single paid API. Most sources are completely free and unlimited.
 - **Network Growth Scraper** uses SerpAPI (or Serper.dev) to find AI/ML recruiters and founders at your watchlist companies.
 - **Career Page Watcher** monitors the career pages of your watched companies and alerts you the moment a new role appears.
 - **Interview Intelligence** uses Gemini AI to generate a predicted question list and strategy for any company + role.
@@ -281,7 +287,7 @@ npm start
 python scrapers/company_discovery.py --dry-run
 ```
 
-This runs the full 5-layer pipeline and prints every discovered company without saving anything to the database. Use this to verify your setup before the first real run.
+This runs the full 11-layer pipeline and prints every discovered company without saving anything to the database. Use this to verify your setup before the first real run.
 
 ### Network Growth Scraper
 
@@ -341,7 +347,7 @@ All three GitHub Actions are set to **manual-only trigger** to avoid wasting API
 
 | Workflow | File | What it does | Duration |
 |---|---|---|---|
-| Weekly Company Discovery | `company_discovery.yml` | 5-layer AI startup discovery pipeline | 5–12 min |
+| Weekly Company Discovery | `company_discovery.yml` | 11-layer AI startup discovery pipeline | 5–12 min |
 | Network Growth Scraper | `network_growth.yml` | LinkedIn X-Ray recruiter discovery | 2–4 min |
 | Career Page Watcher | `career_page_watcher.yml` | Monitors watched company career pages | 1–3 min |
 
@@ -398,7 +404,7 @@ hs/
 │   └── time.ts                      # timeAgo() helper
 ├── scrapers/
 │   ├── common.py                    # Shared helpers (Supabase, Telegram, dedup)
-│   ├── company_discovery.py         # ★ God-Level 5-layer company discovery
+│   ├── company_discovery.py         # ★ God-Level 11-layer company discovery
 │   ├── network_growth.py            # LinkedIn X-Ray recruiter discovery
 │   ├── career_page_watcher.py       # Career page change monitor
 │   ├── send_daily_summary.py        # Telegram daily summary
@@ -427,7 +433,7 @@ KPI cards: **New Companies (7D)**, **Total Tracked**, **New Contacts (24H)**, **
 ### `/companies` — Company Intelligence
 Two tabs:
 1. **Manual / Imported Watchlist**: Your core target companies. Toggle ⭐ Watch, see last career page changes, click 💼 LinkedIn to find employees.
-2. **Discovered Companies**: Newly discovered AI/ML startups from the 5-layer scanner. View their potential score, AI signals, and add them to your watchlist with one click.
+2. **Discovered Companies**: Newly discovered AI/ML startups from the 11-layer scanner. View their potential score, AI signals, and add them to your watchlist with one click.
 
 ### `/network` — Network Intelligence
 Displays batches of AI/ML recruiters, CTOs, and founders discovered by the Network Growth Scraper. One-click **Connect on LinkedIn** buttons and a pre-written connection message template.
@@ -445,16 +451,22 @@ Strategic playbook for AI/ML job hunting. The **Automations** section shows all 
 
 ## Scrapers Reference
 
-### `company_discovery.py` — God-Level 5-Layer Pipeline
+### `company_discovery.py` — God-Level 11-Layer Pipeline
 
 | Layer | Source | Cost | Notes |
 |---|---|---|---|
 | L1 | **Startup India DPIIT API** | 🆓 Free, no key | Govt-verified AI startups in Gujarat |
 | L1 | **IndiaAI.gov.in** | 🆓 Free, no key | MeitY-listed AI companies |
 | L2 | **RSS Feeds** (YourStory, Inc42, ET, AIM) | 🆓 Free, real-time | Extracts company names from news articles |
-| L3 | **Serper.dev LinkedIn X-Ray** | 🆓 2,500 free credits | Searches LinkedIn for AI companies in Gujarat |
-| L4 | **Clutch.co + NASSCOM** | 🆓 Free scraping | Pre-verified directory listings |
-| L5 | **i-Hub Gujarat** | 🆓 Free, no key | State-government curated startups |
+| L3 | **Serper.dev LinkedIn X-Ray** | 🆓 2,500 free credits | Searches LinkedIn for AI companies (22 deep queries) |
+| L4 | **GoodFirms / TechBehemoths** | 🆓 Free scraping | Replaces Cloudflare-blocked directories |
+| L5 | **i-Hub Gujarat** | 🆓 Free, no key | State-government curated startups + X-Ray fallback |
+| L6 | **GitHub Organizations** | 🆓 Free, no key | High-signal real developer activity |
+| L7 | **Incubator Portfolios** | 🆓 Free | IIMA Ventures, IIT-GN |
+| L8 | **HackerNews** | 🆓 Free | Monthly 'Who is Hiring' threads |
+| L9 | **HuggingFace** | 🆓 2,500 free credits | Companies publishing open-source AI models |
+| L10 | **Naukri X-Ray** | 🆓 2,500 free credits | High-Intent: Companies actively paying for AI roles |
+| L11 | **News Intelligence** | 🆓 2,500 free credits | Funded AI companies via targeted news search |
 
 **Smart Verification** (zero search API calls): Website (direct HTTP check), GitHub (free public API, 60 req/hr), Funding & Founder signals (extracted from RSS article text).
 
@@ -528,7 +540,7 @@ Thresholds:
 If setting up for the first time **or** upgrading from v1, run this SQL in **Supabase → SQL Editor**:
 
 ```sql
--- Discovered companies (from 5-layer company discovery pipeline)
+-- Discovered companies (from 11-layer company discovery pipeline)
 CREATE TABLE IF NOT EXISTS discovered_companies (
   id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                 TEXT NOT NULL,

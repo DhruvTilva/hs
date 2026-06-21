@@ -2,18 +2,21 @@
 
 If you list HireSense on your resume, interviewers will drill down into the architecture, the scraping logic, and the scale. Here are the guaranteed, highest-probability questions covering every specific layer of your application.
 
-## 1. The 8-Layer Discovery Engine (Core Technical Questions)
+## 1. The 11-Layer Discovery Engine (Core Technical Questions)
 
 **Q: Walk me through your "Company Discovery" logic. How does it work so intelligently?**
-- "It uses an 8-Layer Multi-Source Pipeline to discover companies that traditional job boards miss. It doesn't rely on just one search. 
+- "It uses an 11-Layer Multi-Source Pipeline to discover companies that traditional job boards miss. It doesn't rely on just one search. 
   1. **Gov APIs:** It queries official databases like Startup India.
   2. **RSS + AI:** It reads tech news RSS feeds and uses the Gemini AI API to extract company names from articles.
-  3. **LinkedIn X-Ray:** It uses Serper.dev to find LinkedIn profiles of AI startups in Gujarat.
-  4. **Directories:** It scrapes NASSCOM and Clutch.co.
-  5. **State Portals:** It pulls from state-funded incubation lists like i-Hub Gujarat.
-  6. **GitHub:** It uses the GitHub API to find active organizations based in Ahmedabad.
-  7. **Incubators:** It scrapes portfolios of top incubators like IIMA Ventures and IIT-GN.
-  8. **Hacker News:** It scans the monthly 'Who is Hiring' threads for high-intent signals."
+  3. **LinkedIn X-Ray:** It uses Serper.dev to find LinkedIn profiles of AI startups in Gujarat using 22 specific AI sub-domain queries.
+  4. **Public Directories:** It scrapes GoodFirms and TechBehemoths for AI companies.
+  5. **NASSCOM X-Ray:** It bypasses login walls using Serper to find NASSCOM members.
+  6. **State Portals:** It pulls from state-funded incubation lists like i-Hub Gujarat.
+  7. **GitHub:** It uses the GitHub API to find active organizations based in Ahmedabad and Gandhinagar.
+  8. **Incubators:** It scrapes portfolios of top incubators like IIMA Ventures and IIT-GN.
+  9. **HuggingFace:** It tracks companies publishing open-source models.
+  10. **Naukri X-Ray (High Intent):** It finds companies actively paying to hire AI engineers right now.
+  11. **News Intelligence:** It tracks funding news in Inc42 and YourStory."
 
 **Q: That's a lot of data. How do you verify the companies and filter out the noise?**
 - "I built a **Smart Verification Engine** that uses ZERO paid search API calls. It validates the company by making direct HTTP checks to their website. If a company is found in multiple independent layers (e.g., an Incubator list AND Hacker News), it gets a massive 'Confidence Bonus'. Companies with low scores are automatically dropped."

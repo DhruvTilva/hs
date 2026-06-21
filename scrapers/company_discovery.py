@@ -174,38 +174,63 @@ def layer1_startup_india() -> list[dict[str, Any]]:
     discovered: list[dict[str, Any]] = []
 
     api_url = "https://api.startupindia.gov.in/sih/api/pub/user/startups/search"
-    for page in range(0, 3):
+    # Fetch all Gujarat startups across Technology sectors and filter locally
+    # Removed city filter at API level — catches Gandhinagar, GIFT City, Surat etc.
+    for page in range(0, 5):  # More pages = more coverage
         try:
             params = {
-                "roles": "STARTUP", "states": "Gujarat",
-                "pageNo": page, "pageSize": 50,
-                "sortBy": "registrationDate", "sortOrder": "DESC",
+                "roles": "STARTUP",
+                "states": "Gujarat",
+                "pageNo": page,
+                "pageSize": 50,
+                "sortBy": "registrationDate",
+                "sortOrder": "DESC",
             }
             r = _safe_get(api_url, params=params, timeout=15)
             if not r:
                 break
             data = r.json()
-            startups = data.get("data", data.get("startups", []))
+            # API returns data under different keys depending on version
+            startups = (
+                data.get("data") or
+                data.get("startups") or
+                data.get("results") or
+                (data.get("payload") or {}).get("startups") or
+                []
+            )
             if not startups:
                 break
             for s in startups:
-                city = (s.get("city") or s.get("cityOfOperation") or "").lower()
-                if not any(loc in city for loc in ["ahmedabad", "gandhinagar", "gift"]):
-                    continue
-                desc = (s.get("description") or s.get("shortDesc") or "").lower()
+                # Accept any Gujarat city — not just Ahmedabad
+                city = (
+                    s.get("city") or
+                    s.get("cityOfOperation") or
+                    s.get("registeredCity") or ""
+                ).strip()
+                # Require AI signal in description
+                desc = (
+                    s.get("description") or
+                    s.get("shortDesc") or
+                    s.get("about") or ""
+                ).lower()
                 if not _has_ai_signal(desc):
                     continue
-                name = s.get("name") or s.get("startupName") or ""
+                name = (
+                    s.get("name") or
+                    s.get("startupName") or
+                    s.get("entityName") or ""
+                ).strip()
                 if not name:
                     continue
+                location = city or "Gujarat"
                 discovered.append({
-                    "name": name.strip(),
-                    "location": city.title() or "Ahmedabad",
-                    "website": s.get("website"),
+                    "name": name,
+                    "location": location,
+                    "website": s.get("website") or s.get("websiteUrl"),
                     "source": "Startup India",
                     "source_url": "https://www.startupindia.gov.in",
-                    "funding_snippet": desc[:200],
-                    "has_website": bool(s.get("website")),
+                    "ai_ml_signals": [kw for kw in AI_ML_KEYWORDS if kw in desc],
+                    "has_website": bool(s.get("website") or s.get("websiteUrl")),
                     "govt_verified": True,
                 })
             _sleep(1, 2)
@@ -256,11 +281,19 @@ def layer1_india_ai() -> list[dict[str, Any]]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 RSS_FEEDS = [
+    # National AI news — broad but useful with Gemini filtering
     "https://yourstory.com/feed",
     "https://inc42.com/feed/",
+    "https://analyticsindiamag.com/feed/",
+    # Gujarat/Ahmedabad-specific feeds — highest signal
+    "https://inc42.com/tag/ahmedabad/feed/",
+    "https://inc42.com/tag/gujarat/feed/",
+    "https://yourstory.com/tag/ahmedabad/feed",
+    "https://yourstory.com/tag/gujarat/feed",
+    "https://yourstory.com/tag/artificial-intelligence/feed",
+    # National tech/startup feed for AI funding news
     "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570550.cms",
     "https://community.nasscom.in/feed",
-    "https://analyticsindiamag.com/feed/",
 ]
 
 
@@ -312,11 +345,11 @@ def layer2_rss_feeds() -> list[dict[str, Any]]:
         return discovered
 
     gemini_calls = 0
-    MAX_GEMINI_CALLS = 10  # stay safe within free rate limit
+    MAX_GEMINI_CALLS = 15  # safe within free rate limit
 
     for feed_url in RSS_FEEDS:
         try:
-            feed = feedparser.parse(feed_url)
+            feed = feedparser.parse(feed_url, agent="Mozilla/5.0")
             entries = feed.get("entries", [])
             logger.info("[L2] %s → %d entries", feed_url, len(entries))
 
@@ -325,9 +358,12 @@ def layer2_rss_feeds() -> list[dict[str, Any]]:
                 summary = entry.get("summary", "") or entry.get("description", "")
                 content = f"{title} {summary}"
 
-                if not any(loc in content.lower() for loc in LOCATION_SIGNALS):
-                    continue
                 if not _has_ai_signal(content.lower()):
+                    continue
+                # Accept articles about Gujarat OR generic AI funding (Gemini will extract Gujarat companies)
+                has_location = any(loc in content.lower() for loc in LOCATION_SIGNALS)
+                is_location_feed = any(tag in feed_url for tag in ["ahmedabad", "gujarat"])
+                if not has_location and not is_location_feed:
                     continue
 
                 has_funding      = any(sig in content.lower() for sig in FUNDING_SIGNALS)
@@ -348,13 +384,12 @@ def layer2_rss_feeds() -> list[dict[str, Any]]:
                 for name in names:
                     discovered.append({
                         "name": name,
-                        "location": "Ahmedabad",
+                        "location": "Gujarat",
                         "source": f"RSS: {feed.feed.get('title', feed_url)}",
                         "source_url": entry.get("link", feed_url),
                         "has_funding": has_funding,
                         "has_technical_founder": has_tech_founder,
                         "ai_ml_signals": ai_signals,
-                        "funding_snippet": content[:300],
                         "news_mentions": 1,
                     })
 
@@ -371,16 +406,32 @@ def layer2_rss_feeds() -> list[dict[str, Any]]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 SERPER_LINKEDIN_QUERIES = [
+    # Core AI/ML — Ahmedabad
     'site:linkedin.com/company "artificial intelligence" OR "machine learning" "Ahmedabad"',
     'site:linkedin.com/company "generative ai" OR "llm" "Ahmedabad"',
+    'site:linkedin.com/company "deep learning" OR "neural network" "Ahmedabad"',
+    'site:linkedin.com/company "computer vision" OR "natural language processing" "Ahmedabad"',
+    'site:linkedin.com/company "NLP" OR "computer vision" "Ahmedabad"',
+    # Core AI/ML — Gujarat & GIFT City
     'site:linkedin.com/company "artificial intelligence" OR "machine learning" "Gujarat"',
     'site:linkedin.com/company "GenAI" OR "LLM" "Gujarat"',
     'site:linkedin.com/company "artificial intelligence" OR "machine learning" "GIFT City"',
-    'site:linkedin.com/company "deep learning" OR "neural network" "Ahmedabad"',
-    'site:linkedin.com/company "computer vision" OR "natural language processing" "Ahmedabad"',
-    'site:linkedin.com/company "NLP" OR "computer vision" "Gujarat"',
+    # Core AI/ML — Gandhinagar (IIT-GN ecosystem)
+    'site:linkedin.com/company "AI" OR "machine learning" "Gandhinagar"',
     'site:linkedin.com/company "AI startup" "Ahmedabad" OR "Gandhinagar"',
+    # AI Sub-domains — high specificity, low false positive rate
+    'site:linkedin.com/company "mlops" OR "ml infrastructure" "Ahmedabad" OR "Gujarat"',
+    'site:linkedin.com/company "data science" OR "data analytics" "Ahmedabad"',
+    'site:linkedin.com/company "AI product" OR "AI platform" "Ahmedabad"',
+    'site:linkedin.com/company "conversational AI" OR "chatbot AI" "Ahmedabad"',
+    'site:linkedin.com/company "AI research" OR "applied AI" "Gujarat"',
     'site:linkedin.com/company "machine learning" "fintech" "GIFT City"',
+    'site:linkedin.com/company "generative AI" "Gujarat" startup',
+    'site:linkedin.com/company "deep tech" OR "deeptech" "Ahmedabad"',
+    'site:linkedin.com/company "AI" "healthcare" "Ahmedabad" OR "Gujarat"',
+    'site:linkedin.com/company "large language model" OR "foundation model" "India" "Ahmedabad"',
+    'site:linkedin.com/company "AI" "robotics" OR "autonomous" "Ahmedabad" OR "Gujarat"',
+    'site:linkedin.com/company "AI" "supply chain" OR "logistics AI" "Gujarat"',
 ]
 
 
@@ -434,45 +485,129 @@ def layer3_serper_linkedin() -> list[dict[str, Any]]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# LAYER 4 — Direct Directory Scraping (Clutch, NASSCOM)
+# LAYER 4 — Directory Intelligence (GoodFirms, TechBehemoths, NASSCOM X-Ray)
+# Replaces broken Clutch (Cloudflare-blocked) and NASSCOM (login-gated)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def layer4_clutch() -> list[dict[str, Any]]:
-    print("\n[L4] Clutch.co AI directory...")
+def layer4_goodfirms() -> list[dict[str, Any]]:
+    """GoodFirms is publicly accessible and has structured AI company listings for Ahmedabad."""
+    print("\n[L4] GoodFirms AI Directory (Ahmedabad)...")
     discovered: list[dict[str, Any]] = []
     urls = [
-        "https://clutch.co/in/it-services/artificial-intelligence/ahmedabad",
-        "https://clutch.co/in/it-services/machine-learning/ahmedabad",
+        "https://www.goodfirms.co/artificial-intelligence/ahmedabad",
+        "https://www.goodfirms.co/machine-learning/ahmedabad",
+        "https://www.goodfirms.co/natural-language-processing/ahmedabad",
+        "https://www.goodfirms.co/computer-vision/ahmedabad",
     ]
     for url in urls:
-        r = _safe_get(url, timeout=15)
+        r = _safe_get(url, timeout=20)
         if not r:
             _sleep(2, 4)
             continue
         soup = BeautifulSoup(r.text, "html.parser")
-        for selector in ["h3.company_info", "h3", ".company-name", ".sg-provider__name"]:
+        # GoodFirms uses structured cards with company names in h4 or .company-name
+        for selector in ["h4.company-name", "h4", ".company-name", ".firm-name", "[itemprop='name']"]:
             for tag in soup.select(selector):
                 name = _clean_name(tag.get_text(strip=True))
-                if _is_valid_name(name):
-                    discovered.append({"name": name, "location": "Ahmedabad", "source": "Clutch.co", "source_url": url, "has_website": True})
-        _sleep(3, 5)
-    print(f"[L4] Clutch.co → {len(discovered)} companies")
-    return discovered
+                if _is_valid_name(name) and len(name) > 3:
+                    discovered.append({
+                        "name": name,
+                        "location": "Ahmedabad",
+                        "source": "GoodFirms Directory",
+                        "source_url": url,
+                        "has_website": True,
+                    })
+        _sleep(2, 4)
+    # Deduplicate
+    seen: set[str] = set()
+    unique = []
+    for c in discovered:
+        if c["name"].lower() not in seen:
+            seen.add(c["name"].lower())
+            unique.append(c)
+    print(f"[L4] GoodFirms → {len(unique)} companies")
+    return unique
 
 
-def layer4_nasscom() -> list[dict[str, Any]]:
-    print("[L4] NASSCOM directory...")
+def layer4_techbehemoths() -> list[dict[str, Any]]:
+    """TechBehemoths has AI companies directory for India, publicly accessible."""
+    print("[L4] TechBehemoths AI Directory...")
     discovered: list[dict[str, Any]] = []
-    url = "https://nasscom.in/memberlisting?field_company_location_target_id=Gujarat&field_service_offering_target_id=Artificial+Intelligence"
-    r = _safe_get(url, timeout=15)
-    if r:
-        soup = BeautifulSoup(r.text, "html.parser")
-        for tag in soup.find_all(["h2", "h3", "h4", ".member-name", ".company-title"]):
-            name = _clean_name(tag.get_text(strip=True))
-            if _is_valid_name(name) and len(name) > 4:
-                discovered.append({"name": name, "location": "Gujarat", "source": "NASSCOM", "source_url": url})
-    print(f"[L4] NASSCOM → {len(discovered)} companies")
-    return discovered
+    if not SERPER_KEY:
+        return discovered
+    # Use Serper X-Ray since TechBehemoths uses JS rendering
+    queries = [
+        'site:techbehemoths.com "artificial intelligence" "Ahmedabad"',
+        'site:techbehemoths.com "machine learning" "Ahmedabad"',
+        'site:techbehemoths.com "AI" "Gujarat"',
+    ]
+    for query in queries:
+        results = _serper_search(query, num=8)
+        for r in results:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            if "techbehemoths.com" not in url:
+                continue
+            # Company name is usually in title before the " | TechBehemoths" suffix
+            name = _clean_name(re.split(r"\s*[-|]\s*(TechBehemoths|Reviews)", title)[0])
+            if not _is_valid_name(name):
+                continue
+            discovered.append({
+                "name": name,
+                "location": "Ahmedabad",
+                "source": "TechBehemoths Directory",
+                "source_url": url,
+                "has_website": True,
+            })
+        _sleep(1, 2)
+    seen: set[str] = set()
+    unique = []
+    for c in discovered:
+        if c["name"].lower() not in seen:
+            seen.add(c["name"].lower())
+            unique.append(c)
+    print(f"[L4] TechBehemoths → {len(unique)} companies")
+    return unique
+
+
+def layer4_nasscom_xray() -> list[dict[str, Any]]:
+    """NASSCOM members via Serper X-Ray — bypasses login wall."""
+    print("[L4] NASSCOM member X-Ray via Serper...")
+    discovered: list[dict[str, Any]] = []
+    if not SERPER_KEY:
+        return discovered
+    queries = [
+        'site:nasscom.in "Gujarat" OR "Ahmedabad" "artificial intelligence"',
+        'site:nasscom.in "AI" "Ahmedabad"',
+        'site:nasscom.in "machine learning" "Gujarat"',
+    ]
+    for query in queries:
+        results = _serper_search(query, num=8)
+        for r in results:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            if "nasscom.in" not in url:
+                continue
+            name = _clean_name(re.split(r"\s*[-|]\s*(NASSCOM|Community)", title)[0])
+            if not _is_valid_name(name):
+                continue
+            discovered.append({
+                "name": name,
+                "location": "Gujarat",
+                "source": "NASSCOM X-Ray",
+                "source_url": url,
+            })
+        _sleep(1, 2)
+    seen: set[str] = set()
+    unique = []
+    for c in discovered:
+        if c["name"].lower() not in seen:
+            seen.add(c["name"].lower())
+            unique.append(c)
+    print(f"[L4] NASSCOM X-Ray → {len(unique)} companies")
+    return unique
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -482,26 +617,52 @@ def layer4_nasscom() -> list[dict[str, Any]]:
 def layer5_ihub_gujarat() -> list[dict[str, Any]]:
     print("\n[L5] i-Hub Gujarat (State Government Startup Directory)...")
     discovered: list[dict[str, Any]] = []
-    urls_to_try = ["https://ihubgujarat.in/startups", "https://ihubgujarat.in/portfolio", "https://ihubgujarat.in/ecosystem"]
 
+    # First try direct scrape
+    urls_to_try = ["https://ihubgujarat.in/startups", "https://ihubgujarat.in/portfolio", "https://ihubgujarat.in/ecosystem"]
     for url in urls_to_try:
         r = _safe_get(url, timeout=20)
         if not r:
             _sleep(2, 3)
             continue
         soup = BeautifulSoup(r.text, "html.parser")
-        for selector in ["h2", "h3", "h4", ".startup-name", ".company-name", ".portfolio-title", ".card-title"]:
+        for selector in ["h2", "h3", "h4", ".startup-name", ".company-name", ".portfolio-title", ".card-title", "[class*='startup']", "[class*='company']"]:
             for tag in soup.select(selector):
                 text = tag.get_text(strip=True)
                 name = _clean_name(text)
                 if not _is_valid_name(name) or len(name) < 4:
                     continue
-                if name.lower() in {"home", "about", "contact", "team", "news"}:
+                if name.lower() in {"home", "about", "contact", "team", "news", "events"}:
                     continue
                 discovered.append({"name": name, "location": "Ahmedabad", "source": "i-Hub Gujarat", "source_url": url, "govt_verified": True})
         if discovered:
             break
         _sleep(2, 4)
+
+    # Fallback: Serper X-Ray if direct scrape failed (JS-rendered pages)
+    if not discovered and SERPER_KEY:
+        logger.info("[L5] Direct scrape returned 0 — falling back to Serper X-Ray")
+        xray_queries = [
+            'site:ihubgujarat.in startup',
+            'site:ihubgujarat.in company',
+            '"ihub gujarat" OR "i-hub gujarat" AI startup',
+        ]
+        for query in xray_queries:
+            results = _serper_search(query, num=10)
+            for r in results:
+                url = r.get("url", "")
+                title = r.get("title", "")
+                name = _clean_name(re.split(r"\s*[-|]\s*(i-Hub|iHub|Gujarat)", title)[0])
+                if not _is_valid_name(name) or len(name) < 4:
+                    continue
+                discovered.append({
+                    "name": name,
+                    "location": "Gujarat",
+                    "source": "i-Hub Gujarat",
+                    "source_url": url,
+                    "govt_verified": True,
+                })
+            _sleep(1, 2)
 
     seen: set[str] = set()
     unique = []
@@ -534,6 +695,11 @@ def layer6_github_orgs() -> list[dict[str, Any]]:
         "location:Ahmedabad artificial intelligence",
         "location:Ahmedabad deep learning",
         "location:Ahmedabad llm",
+        "location:Ahmedabad pytorch",
+        "location:Ahmedabad huggingface",
+        "location:Ahmedabad transformers",
+        "location:Ahmedabad cuda",
+        "location:Gandhinagar machine learning",
     ]
 
     for q in search_queries:
@@ -576,21 +742,23 @@ def layer6_github_orgs() -> list[dict[str, Any]]:
         except Exception as exc:
             logger.warning("[L6] GitHub query '%s' error: %s", q, exc)
 
-    # Only include companies where 2+ developers listed it (reduces noise)
+    # Include companies where 1+ developer listed it (Ahmedabad is small; 2 is too strict)
+    # But grant score bonuses for 2+ and 3+
     discovered = []
     for company_name, count in company_counter.items():
-        if count >= 2:
+        if count >= 1:  # Changed from 2 to 1 — small city, 1 dev is still a real signal
             meta = company_meta[company_name].copy()
             meta["has_github"] = True
             github_handle = re.sub(r'\s+', '', company_name).lower()
             meta["github_url"] = f"https://github.com/{github_handle}"
             meta["has_technical_founder"] = True  # Real devs work here
-            # 3+ devs = very high confidence, add govt_verified-level trust
             if count >= 3:
-                meta["multi_dev_verified"] = True
+                meta["multi_dev_verified"] = True  # 3+ devs = proven team
+            elif count >= 2:
+                meta["has_funding"] = meta.get("has_funding", False)  # 2 devs still counts as validated
             discovered.append(meta)
 
-    print(f"[L6] GitHub Intelligence → {len(discovered)} companies (2+ devs each)")
+    print(f"[L6] GitHub Intelligence → {len(discovered)} companies")
     return discovered
 
 
@@ -818,6 +986,202 @@ def layer8_hackernews_hiring() -> list[dict[str, Any]]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# LAYER 9 — HuggingFace Intelligence (NEW)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def layer9_huggingface_intelligence() -> list[dict[str, Any]]:
+    print("\n[L9] HuggingFace Open Source Intelligence...")
+    if not SERPER_KEY:
+        return []
+
+    discovered: list[dict[str, Any]] = []
+    queries = [
+        'site:huggingface.co "Ahmedabad"',
+        'site:huggingface.co "Gandhinagar"',
+        'site:huggingface.co "GIFT City"',
+        'site:huggingface.co "Gujarat"',
+    ]
+
+    for query in queries:
+        results = _serper_search(query, num=10)
+        for r in results:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            
+            # Extract Org or Username from HuggingFace URL
+            # https://huggingface.co/OrganizationName
+            match = re.search(r"huggingface\.co/([^/]+)", url)
+            if not match:
+                continue
+                
+            name_raw = match.group(1).replace("-", " ")
+            name = _clean_name(name_raw)
+            if not _is_valid_name(name) or len(name) < 3:
+                continue
+                
+            # Filter out generic hub/model paths
+            if name.lower() in ["models", "datasets", "spaces", "docs", "blog", "pricing", "join", "login", "tasks", "papers"]:
+                continue
+
+            discovered.append({
+                "name": name, 
+                "location": "Ahmedabad",
+                "source": "HuggingFace OS Intelligence",
+                "source_url": url,
+                "has_technical_founder": True,
+                "ai_ml_signals": ["huggingface", "open-source models"],
+            })
+        _sleep(1, 2)
+
+    print(f"[L9] HuggingFace → {len(discovered)} organizations/publishers")
+    return discovered
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LAYER 10 — Naukri X-Ray (HIGHEST INTENT SIGNAL)
+# Companies actively posting AI/ML jobs RIGHT NOW in Ahmedabad
+# If they're hiring, they're real, growing, and actively working in AI
+# ══════════════════════════════════════════════════════════════════════════════
+
+def layer10_naukri_xray() -> list[dict[str, Any]]:
+    """Find AI/ML companies ACTIVELY HIRING in Ahmedabad via Naukri job listings."""
+    print("\n[L10] Naukri Job Intelligence (Active AI Hiring)...")
+    if not SERPER_KEY:
+        return []
+
+    discovered: list[dict[str, Any]] = []
+    queries = [
+        'site:naukri.com "machine learning engineer" "Ahmedabad"',
+        'site:naukri.com "data scientist" "Ahmedabad"',
+        'site:naukri.com "AI engineer" "Ahmedabad"',
+        'site:naukri.com "NLP engineer" "Ahmedabad" OR "Gandhinagar"',
+        'site:naukri.com "computer vision engineer" "Ahmedabad"',
+        'site:naukri.com "generative AI" "Ahmedabad" OR "Gujarat"',
+        'site:naukri.com "LLM" OR "large language model" "Ahmedabad"',
+        'site:naukri.com "deep learning" "Ahmedabad"',
+    ]
+
+    for query in queries:
+        results = _serper_search(query, num=10)
+        for r in results:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            if "naukri.com" not in url:
+                continue
+
+            # Naukri title format: "Job Title at Company Name" or "Company Name - Job Title"
+            # Extract company name from title
+            company_name = None
+            # Pattern 1: "Role at Company" or "Role - Company"
+            m = re.search(r"(?:at|@|-|–|by)\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\s*[-|]|\s*in\s+|$)", title)
+            if m:
+                company_name = _clean_name(m.group(1).strip())
+            # Pattern 2: Try from snippet
+            if not company_name or not _is_valid_name(company_name):
+                m2 = re.search(r"Company:\s*([A-Z][A-Za-z0-9\s&.]+?)(?:\s*[-|\n]|$)", snippet)
+                if m2:
+                    company_name = _clean_name(m2.group(1).strip())
+
+            if not company_name or not _is_valid_name(company_name):
+                continue
+
+            # Skip known noise (job aggregators, staffing firms)
+            skip_names = {"naukri", "indeed", "linkedin", "foundit", "monster", "timesjobs", "placement", "staffing"}
+            if any(noise in company_name.lower() for noise in skip_names):
+                continue
+
+            discovered.append({
+                "name": company_name,
+                "location": "Ahmedabad",
+                "source": "Naukri Job Intelligence",
+                "source_url": url,
+                "has_technical_founder": True,  # AI role posting = technical culture
+                "ai_ml_signals": ["active hiring", "ml role"],
+                "news_mentions": 1,  # Active hiring = fresh evidence
+            })
+        _sleep(1, 2)
+
+    # Deduplicate
+    seen: set[str] = set()
+    unique = []
+    for c in discovered:
+        if c["name"].lower() not in seen:
+            seen.add(c["name"].lower())
+            unique.append(c)
+    print(f"[L10] Naukri Job Intelligence → {len(unique)} companies actively hiring AI")
+    return unique
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LAYER 11 — News Intelligence (Funding + Announcement X-Ray)
+# Companies that raised money or made announcements in Gujarat AI space
+# These are companies with momentum and investor backing
+# ══════════════════════════════════════════════════════════════════════════════
+
+def layer11_news_intelligence() -> list[dict[str, Any]]:
+    """Extract Gujarat AI companies from funding news and announcements."""
+    print("\n[L11] News Intelligence (Funding & Announcement X-Ray)...")
+    if not SERPER_KEY:
+        return []
+
+    discovered: list[dict[str, Any]] = []
+    queries = [
+        'site:inc42.com "Ahmedabad" "funding" "AI" OR "machine learning"',
+        'site:inc42.com "Gujarat" "raised" "AI" OR "deep tech"',
+        'site:yourstory.com "Ahmedabad" "AI" "startup" "funding"',
+        'site:yourstory.com "Gujarat" "raised" "machine learning"',
+        '"Ahmedabad" "AI startup" "raises" OR "raised" "crore" OR "million" 2024 OR 2025',
+        '"Gujarat" "artificial intelligence" "funded" OR "investment" site:entrackr.com',
+    ]
+
+    for query in queries:
+        results = _serper_search(query, num=10)
+        for r in results:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            combined = f"{title} {snippet}"
+
+            if not _has_ai_signal(combined.lower()):
+                continue
+
+            # Use Gemini to extract company names from news snippets
+            names = []
+            if GEMINI_KEY:
+                names = _gemini_extract_companies(combined)
+            if not names:
+                names = _extract_names_from_text(combined)
+
+            has_funding = any(sig in combined.lower() for sig in FUNDING_SIGNALS)
+            ai_signals = [kw for kw in AI_ML_KEYWORDS if kw in combined.lower()]
+
+            for name in names:
+                if not _is_valid_name(name):
+                    continue
+                discovered.append({
+                    "name": name,
+                    "location": "Ahmedabad",
+                    "source": "News Intelligence",
+                    "source_url": url,
+                    "has_funding": has_funding,
+                    "ai_ml_signals": ai_signals,
+                    "news_mentions": 1,
+                })
+        _sleep(1, 2)
+
+    # Deduplicate
+    seen: set[str] = set()
+    unique = []
+    for c in discovered:
+        if c["name"].lower() not in seen:
+            seen.add(c["name"].lower())
+            unique.append(c)
+    print(f"[L11] News Intelligence → {len(unique)} companies from funding news")
+    return unique
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # SMART VERIFICATION — Zero Search API calls
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -923,44 +1287,77 @@ def apply_multi_source_confidence(companies: list[dict[str, Any]]) -> list[dict[
 
 def calculate_score(company: dict[str, Any]) -> int:
     score = 0
+    source = company.get("source", "")
 
-    # Core signals
-    if company.get("has_funding"):           score += 30
+    # ── Technical Depth Weighting ──
+    if company.get("has_github"):            score += 40
+    if company.get("has_technical_founder"): score += 30
+    if company.get("has_funding"):           score += 20
     if company.get("govt_verified"):         score += 15
     if company.get("has_linkedin"):          score += 10
+    if company.get("news_mentions", 0) > 0:  score += 5
     if company.get("has_website"):           score += 5
-    if company.get("has_technical_founder"): score += 15
-    if company.get("has_github"):            score += 10
-    if company.get("news_mentions", 0) > 0:  score += 10
+
+    # AI Signal Keywords
     if company.get("ai_ml_signals"):         score += 40
 
-    # ── Multi-Source Confidence Bonuses (NEW) ──
+    # ── Source-Specific Intent Bonuses (NEW) ──
+    if "Serper LinkedIn X-Ray" in source:
+        score += 20  # Found via explicit AI LinkedIn search
+    if "Naukri Job Intelligence" in source:
+        score += 25  # Actively hiring AI roles = confirmed real + growing
+    if "News Intelligence" in source:
+        score += 20  # Media coverage = established company
+    if "HuggingFace" in source:
+        score += 30  # Publishing AI models = proven technical depth
+    if "GoodFirms" in source or "TechBehemoths" in source:
+        score += 5   # Reviewed directory listing
+    if "NASSCOM" in source:
+        score += 10  # Industry body member
+
+    # ── Multi-Source Confidence Bonuses ──
     source_count = company.get("source_count", 1)
-    if source_count >= 3:
+    if source_count >= 4:
+        score += 40   # Found in 4+ independent sources = extremely high confidence
+    elif source_count >= 3:
         score += 30   # Found in 3+ independent sources = almost certainly real
     elif source_count == 2:
         score += 15   # Found in 2 sources = high confidence
 
-    if company.get("incubator_backed"):      score += 25   # IIM-A / IIT-GN says it's legit
-    if company.get("hn_hiring"):             score += 20   # Self-posted on HN = confirmed hiring now
-    if company.get("multi_dev_verified"):    score += 20   # 3+ devs on GitHub = proven team
+    if company.get("incubator_backed"):      score += 40   # IIM-A / IIT-GN says it's legit
+    if company.get("hn_hiring"):             score += 40   # Self-posted on HN = confirmed hiring now
+    if company.get("multi_dev_verified"):    score += 40   # 3+ devs on GitHub = proven team
 
     return min(score, 100)
 
 
 def has_red_flags(company: dict[str, Any]) -> bool:
-    # Incubator-backed, govt-verified, HN hiring, or multi-dev — trust them fully
+    # Phase 4: Anti-Agency Filter — check SOURCE URL and AI signals, NOT company name
+    # This avoids false positives where the company name contains agency-sounding words
+    source_text = (company.get("source_url", "") + " " + " ".join(company.get("ai_ml_signals", []))).lower()
+    anti_keywords = [
+        "seo agency", "digital marketing agency", "bpo", "call center", "data entry",
+        "magento developer", "wordpress developer", "shopify developer",
+        "web design company", "mobile app development company",
+        "erp implementation", "sap implementation", "salesforce customization"
+    ]
+    agency_hits = sum(1 for kw in anti_keywords if kw in source_text)
+    if agency_hits >= 1:  # Even 1 agency keyword in source context = flag
+        logger.info("[skip] Anti-Agency Filter triggered: %s", company.get("name"))
+        return True
+
+    # Always trust these high-authority sources — no red flags possible
     if company.get("incubator_backed"):   return False
     if company.get("govt_verified"):      return False
     if company.get("hn_hiring"):          return False
     if company.get("multi_dev_verified"): return False
 
-    flags = 0
-    if not company.get("has_website"):           flags += 1
-    if not company.get("has_linkedin"):          flags += 1
-    if not company.get("has_technical_founder"): flags += 1
-    if company.get("news_mentions", 0) == 0:     flags += 1
-    return flags >= 3
+    # Phase 1 Fix: Decouple missing data from Red Flags.
+    # The only real red flag is if they have ZERO online presence across all channels.
+    if not company.get("has_website") and not company.get("has_linkedin") and not company.get("has_github"):
+        return True  # Total ghost — no online presence whatsoever
+
+    return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -982,12 +1379,16 @@ def main(dry_run: bool = False) -> int:
     all_discovered += layer1_india_ai()
     all_discovered += layer2_rss_feeds()
     all_discovered += layer3_serper_linkedin()
-    all_discovered += layer4_clutch()
-    all_discovered += layer4_nasscom()
+    all_discovered += layer4_goodfirms()       # Replaces broken Clutch (Cloudflare-blocked)
+    all_discovered += layer4_techbehemoths()   # Replaces broken NASSCOM (login-gated)
+    all_discovered += layer4_nasscom_xray()    # NASSCOM members via Serper X-Ray
     all_discovered += layer5_ihub_gujarat()
     all_discovered += layer6_github_orgs()
     all_discovered += layer7_incubator_portfolios()
     all_discovered += layer8_hackernews_hiring()
+    all_discovered += layer9_huggingface_intelligence()
+    all_discovered += layer10_naukri_xray()      # NEW: Active AI hiring companies
+    all_discovered += layer11_news_intelligence() # NEW: Funded/announced AI companies
 
     # ── Apply Multi-Source Confidence Engine ───────────────────────────────
     print("\n[ENGINE] Applying multi-source confidence scoring...")
